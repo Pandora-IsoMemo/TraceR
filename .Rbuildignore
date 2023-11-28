@@ -1,3 +1,13 @@
-^TraceR\.Rproj$
-^\.Rproj\.user$
+^.+\.Rproj$
+^libWin$
+^libMac$
+^lib$
+^libLinux$
+^Dockerfile$
+^deps$
+^Jenkinsfile$
+^bin$
 ^LICENSE\.md$
+^deploy\.sh$
+^\..*$
+^\.Rproj\.user$
