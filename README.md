@@ -1,2 +1,2 @@
 # TraceR
-An App to create network-like representations 
+An app to create network-like representations. 
