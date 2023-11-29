@@ -40,7 +40,7 @@ shinyServer(function(input, output, session) {
       bounds: true,
       boundsPadding: 0.1
     });
-}, 100);')
+}, 500);')
   })
 
   output$clickMessage <- renderText({
