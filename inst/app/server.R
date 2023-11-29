@@ -34,7 +34,7 @@ shinyServer(function(input, output, session) {
     })
     # Custom js to add panzoom after the svg was created
     shinyjs::runjs('
-    setTimeout(function(){ // 100ms timeout as svg is not immediately available
+    setTimeout(function(){ // 500ms timeout as svg is not immediately available
      var element = document.querySelector("#flowchart svg");
      panzoom(element, {
       bounds: true,
