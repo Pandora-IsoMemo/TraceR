@@ -1,4 +1,4 @@
-FROM ghcr.io/pandora-isomemo/base-image:latest
+FROM inwt/r-shiny:4.2.3
 
 ADD . .
 
