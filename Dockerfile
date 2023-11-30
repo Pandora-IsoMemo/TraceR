@@ -4,4 +4,4 @@ ADD . .
 
 RUN installPackage
 
-CMD ["Rscript", "-e", "library(TraceR)"]
+CMD ["Rscript", "-e", "library(TraceR);startApplication(3838)"]
