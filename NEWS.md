@@ -1,4 +1,4 @@
-# Trace R 24.04.01
+# TraceR 24.04.01
 
 ## New Features
 
