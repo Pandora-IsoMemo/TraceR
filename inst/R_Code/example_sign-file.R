@@ -14,6 +14,9 @@ data <- list(name = "John Doe", age = 30, valid = TRUE)
 # Convert to JSON string
 json_data <- toJSON(data, pretty = TRUE, auto_unbox = TRUE)
 
+# Save the unsigned JSON to a file
+writeLines(json_data, "unsigned_data.json")
+
 # Create a signature
 signature <- signature_create(data = charToRaw(json_data), key = key)
 
@@ -31,6 +34,7 @@ writeLines(signed_json_data, "signed_data.json")
 
 # Load the signed JSON
 received_data <- fromJSON("signed_data.json")
+#received_data <- fromJSON("unsigned_data.json")
 received_json_data <- toJSON(received_data$data, pretty = TRUE, auto_unbox = TRUE)
 received_signature <- base64_decode(received_data$signature)
 
