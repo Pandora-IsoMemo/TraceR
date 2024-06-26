@@ -1,12 +1,26 @@
 shinyServer(function(input, output, session) {
+  # Reactive graph element that is updated regularly
   graph <- reactiveVal()
-  observeEvent(input$generate_flowchart, {
-    graph(create_example_graph())
-    output$flowchart <- renderGrViz({
-      render_graph(graph(), layout = "nicely", as_svg = TRUE)
-    })
-    # Custom js to add panzoom after the svg was created
-    shinyjs::runjs('
+
+  # Create example graph after click on button
+  observe(graph(createExampleGraph())) %>% bindEvent(input$generate_flowchart)
+
+  # Automatically render the graph after updates
+  output$flowchart <- renderGrViz({
+    renderFlowchart(graph)
+  })
+
+  # Download and upload
+  downloadModuleServer("download_unsigned", graph=graph)
+  uploadedGraph <- importModuleServer("import")
+  updateGraph(graph=graph, uploadedGraph=uploadedGraph)
+
+  # Display clicked node id
+  displayNodeId(input, output, outputId="clickMessage")
+
+  # Custom js to add panzoom after the svg was created
+  # Does not work currently (anymore)
+  shinyjs::runjs('
     setTimeout(function(){ // 500ms timeout as svg is not immediately available
      var element = document.querySelector("#flowchart svg");
      panzoom(element, {
@@ -14,10 +28,4 @@ shinyServer(function(input, output, session) {
       boundsPadding: 0.1
     });
 }, 500);')
-  })
-
-  output$clickMessage <- renderText({
-    req(input$flowchart_click)
-    paste0("You clicked the node, which has the ID ", input$flowchart_click$id[[1]], ".")
-  })
 })

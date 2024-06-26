@@ -1,5 +1,5 @@
-create_example_graph <- function(){
-    create_graph() %>%
+createExampleGraph <- function() {
+  create_graph() %>%
     add_pa_graph(
       n = 50, m = 1,
       set_seed = 23
