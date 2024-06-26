@@ -35,7 +35,7 @@ createGraphFromUpload <- function(graph_list) {
 #' Updates the reactive graph element with the uploaded graph
 #'
 #' @param graph reactive, main graph of the app
-#' #' @param uploadedGraph reactive, uploaded graph
+#' @param uploadedGraph reactive, uploaded graph
 updateGraph <- function(graph, uploadedGraph) {
   observe({
     req(uploadedGraph())

@@ -7,8 +7,9 @@
 updateGraph(graph, uploadedGraph)
 }
 \arguments{
-\item{graph}{reactive, main graph of the app
-#' @param uploadedGraph reactive, uploaded graph}
+\item{graph}{reactive, main graph of the app}
+
+\item{uploadedGraph}{reactive, uploaded graph}
 }
 \description{
 Updates the reactive graph element with the uploaded graph
