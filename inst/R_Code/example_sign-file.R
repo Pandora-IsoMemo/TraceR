@@ -2,11 +2,22 @@ library(openssl)
 
 # Generate RSA keys
 key <- rsa_keygen(bits = 2048)  # Generates a key pair with 2048 bits
+
+# idea was to store the output of `dput(key)` in Bitwarden ... but Bitwarden restricts to 5000 characters
+
+# we want to split the output of `dput(key)` into chunks
+key_string <- capture.output(dput(key)) %>%
+  paste(collapse = "\n")
+key_chunks <- strsplit(key_string, split = "(?<=.{5000})", perl = TRUE)
+
 private_key <- key
 public_key <- as.list(key)$pubkey
 # Optionally save keys to files
 write_pem(private_key, "private_key.pem")
 write_pem(public_key, "public_key.pem")
+
+# Read the private key back from the PEM file
+private_key_read <- read_key("private_key.pem")
 
 library(jsonlite)
 # Example data
