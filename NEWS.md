@@ -1,3 +1,9 @@
+# TraceR 24.06.1
+
+## New Features
+
+- adds possibility to download and upload graphs as json
+
 # TraceR 24.04.1
 
 ## New Features

@@ -13,7 +13,13 @@ tagList(
       sidebarLayout(
         sidebarPanel(
           width = 2,
-          actionButton("generate_flowchart", "Generate Flowchart")
+          actionButton("generate_flowchart", "Generate Flowchart"),
+          tags$br(),
+          tags$br(),
+          downloadModuleUI("download_unsigned"),
+          importModuleUI("import"),
+          tags$br(),
+          tags$br()
         ),
         mainPanel(
           grVizOutput("flowchart", width = "600px", height = "600px"),
