@@ -3,3 +3,6 @@
 export(startApplication)
 import(DiagrammeR)
 import(shiny)
+importFrom(jsonlite,fromJSON)
+importFrom(jsonlite,write_json)
+importFrom(shinyalert,shinyalert)
