@@ -16,6 +16,33 @@
     <loc>https://pandora-isomemo.github.io/TraceR/news/index.html</loc>
   </url>
   <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/createGraphFromUpload.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/displayNodeId.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleServer.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleUI.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleServer.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleUI.html</loc>
+  </url>
+  <url>
     <loc>https://pandora-isomemo.github.io/TraceR/reference/index.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/renderFlowchart.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/startApplication.html</loc>
+  </url>
+  <url>
+    <loc>https://pandora-isomemo.github.io/TraceR/reference/updateGraph.html</loc>
   </url>
 </urlset>
