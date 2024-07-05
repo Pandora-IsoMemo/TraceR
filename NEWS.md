@@ -1,3 +1,9 @@
+# TraceR 24.07.0
+
+## New Features
+
+- option to download all user inputs together with the graph as zip file
+
 # TraceR 24.06.1
 
 ## New Features
