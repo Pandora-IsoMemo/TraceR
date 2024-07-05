@@ -15,6 +15,7 @@ tagList(
           width = 2,
           actionButton("generate_flowchart", "Generate Flowchart"),
           tags$br(),
+          textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
           tags$br(),
           downloadModuleUI("download_unsigned"),
           importModuleUI("import"),
