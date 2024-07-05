@@ -1,6 +1,7 @@
 shinyServer(function(input, output, session) {
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
+  upload_description <- reactiveVal()
 
   # Create example graph after click on button
   observe(graph(createExampleGraph())) %>% bindEvent(input$generate_flowchart)
@@ -11,7 +12,7 @@ shinyServer(function(input, output, session) {
   })
 
   # Download and upload
-  downloadModuleServer("download_unsigned", graph=graph)
+  downloadModuleServer("download_unsigned", graph = graph, upload_description = upload_description)
   uploadedGraph <- importModuleServer("import")
   updateGraph(graph=graph, uploadedGraph=uploadedGraph)
 
