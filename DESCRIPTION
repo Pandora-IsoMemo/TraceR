@@ -16,5 +16,6 @@ Imports:
     futile.logger,
     jsonlite,
     shiny,
-    shinyalert
+    shinyalert,
+    yaml
 URL: https://pandora-isomemo.github.io/TraceR/

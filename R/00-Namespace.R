@@ -5,6 +5,7 @@
 #'  importDataUI importDataServer importOptions
 #' @importFrom jsonlite write_json fromJSON
 #' @importFrom shinyalert shinyalert
+#' @importFrom yaml read_yaml
 
 utils::globalVariables(
   c(
