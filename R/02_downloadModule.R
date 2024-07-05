@@ -2,6 +2,8 @@
 #'
 #' @param id Module ID
 #' @return Shiny UI elements
+#'
+#' @export
 downloadModuleUI <- function(id) {
   ns <- NS(id)
   downloadButton(ns("download"), "Download JSON")
@@ -12,6 +14,8 @@ downloadModuleUI <- function(id) {
 #' @param id Module ID
 #' @param graph reactive graph object to be converted to JSON
 #' @return None
+#'
+#' @export
 downloadModuleServer <- function(id, graph) {
   moduleServer(
     id,
