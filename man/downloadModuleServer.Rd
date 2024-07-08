@@ -4,14 +4,12 @@
 \alias{downloadModuleServer}
 \title{Download JSON Module Server}
 \usage{
-downloadModuleServer(id, graph, upload_description)
+downloadModuleServer(id, graph)
 }
 \arguments{
 \item{id}{Module ID}
 
 \item{graph}{reactive graph object to be converted to JSON}
-
-\item{upload_description}{reactive description of the upload}
 }
 \value{
 None

@@ -6,50 +6,20 @@
 #' @export
 downloadModuleUI <- function(id) {
   ns <- NS(id)
-  tagList(
-    downloadButton(ns("download"), "Download JSON"),
-    tags$br(),
-    checkboxInput(
-      inputId = ns("download_inputs"),
-      label = "Download user inputs and graph",
-      value = FALSE
-    ),
-    conditionalPanel(
-      ns = ns,
-      condition = "input.download_inputs == true",
-      downloadModelUI(
-        id = ns("session_download"),
-        label = "Download Session"
-      ),
-      tags$hr()
-    )
-  )
+  downloadButton(ns("download"), "Download JSON")
 }
 
 #' Download JSON Module Server
 #'
 #' @param id Module ID
 #' @param graph reactive graph object to be converted to JSON
-#' @param upload_description reactive description of the upload
 #' @return None
 #'
 #' @export
-downloadModuleServer <- function(id, graph, upload_description) {
+downloadModuleServer <- function(id, graph) {
   moduleServer(
     id,
     function(input, output, session) {
-      # export inputs and graph
-      downloadModelServer("session_download",
-                          dat = reactive(asGraphList(graph())),
-                          inputs = input,
-                          model = reactive(NULL),
-                          rPackageName = config()[["rPackageName"]],
-                          defaultFileName = config()[["defaultFileName"]],
-                          fileExtension = config()[["fileExtension"]],
-                          modelNotes = upload_description,
-                          triggerUpdate = reactive(TRUE),
-                          onlySettings = TRUE)
-
       output$download <- downloadHandler(
         filename = function() {
           paste("traceR-graph-", Sys.Date(), ".json", sep = "")

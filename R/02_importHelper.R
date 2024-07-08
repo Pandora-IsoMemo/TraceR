@@ -44,3 +44,20 @@ updateGraph <- function(graph, uploadedGraph) {
     graph(new_graph)
   })
 }
+
+#' Update input with uploaded input
+#'
+#'
+updateInput <- function(input, output, session, uploaded_inputs) {
+  observe({
+    logDebug("updateInput: Send uploaded_inputs")
+
+    ## update inputs ----
+    inputIDs <- names(uploaded_inputs())
+    inputIDs <- inputIDs[inputIDs %in% names(input)]
+
+    for (i in 1:length(inputIDs)) {
+      session$sendInputMessage(inputIDs[i],  list(value = uploaded_inputs()[[inputIDs[i]]]) )
+    }
+  }) %>% bindEvent(uploaded_inputs())
+}

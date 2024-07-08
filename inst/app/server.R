@@ -8,13 +8,28 @@ shinyServer(function(input, output, session) {
 
   # Automatically render the graph after updates
   output$flowchart <- renderGrViz({
-    renderFlowchart(graph)
+    renderFlowchart(graph)  %>%
+      withProgress(message = "Rendering graph...", value = 0.75)
   })
 
   # Download and upload
-  downloadModuleServer("download_unsigned", graph = graph, upload_description = upload_description)
-  uploadedGraph <- importModuleServer("import")
-  updateGraph(graph = graph, uploadedGraph = uploadedGraph)
+  downloadModuleServer("download_unsigned", graph = graph)
+
+  # export inputs and graph
+  downloadModelServer("session_download",
+                      dat = reactive(asGraphList(graph())),
+                      inputs = input,
+                      model = reactive(NULL),
+                      rPackageName = config()[["rPackageName"]],
+                      defaultFileName = config()[["defaultFileName"]],
+                      fileExtension = config()[["fileExtension"]],
+                      modelNotes = upload_description,
+                      triggerUpdate = reactive(TRUE),
+                      onlySettings = TRUE)
+
+  uploaded_data <- importModuleServer("import")
+  updateGraph(graph = graph, uploadedGraph = reactive(uploaded_data$graph))
+  updateInput(input, output, session, uploaded_inputs = reactive(uploaded_data$input))
 
   # Display clicked node id
   displayNodeId(input, output, outputId = "clickMessage")
