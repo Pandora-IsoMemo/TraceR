@@ -15,6 +15,8 @@ tagList(
           width = 2,
           actionButton("generate_flowchart", "Generate Flowchart"),
           tags$br(),
+          # this is only a placeholder for actual inputs,
+          # can be removed whe we have more inputs that can be stored in a session download:
           textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
           tags$br(),
           downloadModuleUI("download_unsigned"),
