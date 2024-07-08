@@ -14,10 +14,10 @@ shinyServer(function(input, output, session) {
   # Download and upload
   downloadModuleServer("download_unsigned", graph = graph, upload_description = upload_description)
   uploadedGraph <- importModuleServer("import")
-  updateGraph(graph=graph, uploadedGraph=uploadedGraph)
+  updateGraph(graph = graph, uploadedGraph = uploadedGraph)
 
   # Display clicked node id
-  displayNodeId(input, output, outputId="clickMessage")
+  displayNodeId(input, output, outputId = "clickMessage")
 
   # Custom js to add panzoom after the svg was created
   # Does not work currently (anymore)

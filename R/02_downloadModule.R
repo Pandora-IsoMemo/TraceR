@@ -38,17 +38,6 @@ downloadModuleServer <- function(id, graph, upload_description) {
   moduleServer(
     id,
     function(input, output, session) {
-      output$download <- downloadHandler(
-        filename = function() {
-          paste("traceR-graph-", Sys.Date(), ".json", sep = "")
-        },
-        content = function(file) {
-          graph() %>%
-            asGraphList() %>%
-            write_json(path = file, pretty = TRUE)
-        }
-      )
-
       # export inputs and graph
       downloadModelServer("session_download",
                           dat = reactive(asGraphList(graph())),
@@ -60,6 +49,17 @@ downloadModuleServer <- function(id, graph, upload_description) {
                           modelNotes = upload_description,
                           triggerUpdate = reactive(TRUE),
                           onlySettings = TRUE)
+
+      output$download <- downloadHandler(
+        filename = function() {
+          paste("traceR-graph-", Sys.Date(), ".json", sep = "")
+        },
+        content = function(file) {
+          graph() %>%
+            asGraphList() %>%
+            write_json(path = file, pretty = TRUE)
+        }
+      )
     }
   )
 }

@@ -39,6 +39,7 @@ createGraphFromUpload <- function(graph_list) {
 updateGraph <- function(graph, uploadedGraph) {
   observe({
     req(uploadedGraph())
+    logDebug("Update graph")
     new_graph <- createGraphFromUpload(graph_list = uploadedGraph())
     graph(new_graph)
   })
