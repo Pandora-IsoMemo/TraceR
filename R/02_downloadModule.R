@@ -38,6 +38,8 @@ downloadModuleServer <- function(id, graph) {
 #'
 #' @param graph Graph object
 #' @return List
+#'
+#' @export
 asGraphList <- function(graph) {
   graph_list <- sapply(graph, function(x) x)
   graph_list

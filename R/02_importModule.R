@@ -36,13 +36,13 @@ importModuleServer <- function(id) {
         req(length(uploaded_file()) > 0)
         logDebug("importModuleServer: Update graph")
 
-        # Update data
+        # update data
         req(!is.null(uploaded_file()[[1]]))
         data$graph <- uploaded_file()[[1]]
       }) %>%
         bindEvent(uploaded_file())
 
-      # Load session
+      # load session
       uploaded_session <- importDataServer(
         "session_import",
         importType = "model",
