@@ -2,7 +2,8 @@
 
 ## New Features
 
-- option to download all user inputs together with the graph as zip file
+- option to import a graph from a json file from url, Pandora or file
+- option to download all user inputs together with the graph as zip file (`.tracer`)
 
 # TraceR 24.06.1
 
