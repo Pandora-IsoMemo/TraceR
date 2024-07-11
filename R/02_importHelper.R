@@ -47,7 +47,12 @@ updateGraph <- function(graph, uploadedGraph) {
 
 #' Update input with uploaded input
 #'
+#' @param input shiny input
+#' @param output shiny output
+#' @param session shiny session
+#' @param uploaded_inputs reactive, uploaded inputs
 #'
+#' @export
 updateInput <- function(input, output, session, uploaded_inputs) {
   observe({
     logDebug("updateInput: Send uploaded_inputs")

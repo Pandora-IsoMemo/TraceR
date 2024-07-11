@@ -6,6 +6,15 @@
 \usage{
 updateInput(input, output, session, uploaded_inputs)
 }
+\arguments{
+\item{input}{shiny input}
+
+\item{output}{shiny output}
+
+\item{session}{shiny session}
+
+\item{uploaded_inputs}{reactive, uploaded inputs}
+}
 \description{
 Update input with uploaded input
 }
