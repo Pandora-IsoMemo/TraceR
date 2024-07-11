@@ -45,6 +45,7 @@ importModuleServer <- function(id) {
       # load session
       uploaded_session <- importDataServer(
         "session_import",
+        title = "Session import",
         importType = "model",
         defaultSource = config()[["defaultSource"]][["session"]],
         ckanFileTypes = config()[["ckanFileTypes"]][["session"]],
