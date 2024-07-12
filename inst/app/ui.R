@@ -1,5 +1,4 @@
-library(shiny)
-library(DiagrammeR)
+library(TraceR)
 
 tagList(
   navbarPage(

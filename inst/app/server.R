@@ -1,3 +1,5 @@
+library(TraceR)
+
 shinyServer(function(input, output, session) {
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
