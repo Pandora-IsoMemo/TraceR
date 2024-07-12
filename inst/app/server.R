@@ -8,17 +8,17 @@ shinyServer(function(input, output, session) {
   observe(graph(createExampleGraph())) %>% bindEvent(input$generate_flowchart)
 
   # Automatically render the graph after updates
-  output$flowchart <- renderGrViz({
+  output$flowchart <- DiagrammeR::renderGrViz({
     renderFlowchart(graph)
   })
 
   # Download and upload
-  downloadModuleServer("download_unsigned", graph=graph)
+  downloadModuleServer("download_unsigned", graph = graph)
   uploadedGraph <- importModuleServer("import")
-  updateGraph(graph=graph, uploadedGraph=uploadedGraph)
+  updateGraph(graph = graph, uploadedGraph = uploadedGraph)
 
   # Display clicked node id
-  displayNodeId(input, output, outputId="clickMessage")
+  displayNodeId(input, output, outputId = "clickMessage")
 
   # Custom js to add panzoom after the svg was created
   # Does not work currently (anymore)

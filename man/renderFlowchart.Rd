@@ -9,6 +9,9 @@ renderFlowchart(graph)
 \arguments{
 \item{graph}{reactive graph object}
 }
+\value{
+rendered flowchart
+}
 \description{
 Render flowchart
 }

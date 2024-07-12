@@ -1,6 +1,8 @@
 #' Render flowchart
 #'
 #' @param graph reactive graph object
+#' @return rendered flowchart
+#' @export
 renderFlowchart <- function(graph) {
   req(graph())
   tryCatch(
