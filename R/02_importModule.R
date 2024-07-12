@@ -2,6 +2,8 @@
 #'
 #' @param id Module ID
 #' @return Shiny UI elements
+#'
+#' @export
 importModuleUI <- function(id) {
   ns <- NS(id)
   fileInput(ns("file"), "Import JSON",
@@ -13,6 +15,8 @@ importModuleUI <- function(id) {
 #'
 #' @param id Module ID
 #' @return uploaded data
+#'
+#' @export
 importModuleServer <- function(id) {
   moduleServer(
     id,
