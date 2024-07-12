@@ -5,7 +5,8 @@ shinyServer(function(input, output, session) {
   graph <- reactiveVal()
 
   # Create example graph after click on button
-  observe(graph(createExampleGraph())) %>% bindEvent(input$generate_flowchart)
+  observeEvent(input$generate_flowchart,
+               graph(createExampleGraph()))
 
   # Automatically render the graph after updates
   output$flowchart <- DiagrammeR::renderGrViz({
