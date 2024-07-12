@@ -1,5 +1,4 @@
-library(shiny)
-library(DiagrammeR)
+library(TraceR)
 
 tagList(
   navbarPage(
@@ -38,7 +37,7 @@ tagList(
           tags$br()
         ),
         mainPanel(
-          grVizOutput("flowchart", width = "600px", height = "600px"),
+          DiagrammeR::grVizOutput("flowchart", width = "600px", height = "600px"),
           textOutput("clickMessage")
         ),
       )

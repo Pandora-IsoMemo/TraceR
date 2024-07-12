@@ -15,6 +15,7 @@ Imports:
     DiagrammeR,
     futile.logger,
     jsonlite,
+    magrittr,
     shiny,
     shinyalert,
     yaml

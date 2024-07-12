@@ -1,3 +1,7 @@
+#' Create an example graph
+#'
+#' @return Graph object
+#' @export
 createExampleGraph <- function() {
   create_graph() %>%
     add_pa_graph(

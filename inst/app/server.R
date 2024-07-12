@@ -1,13 +1,16 @@
+library(TraceR)
+
 shinyServer(function(input, output, session) {
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
   upload_description <- reactiveVal()
 
   # Create example graph after click on button
-  observe(graph(createExampleGraph())) %>% bindEvent(input$generate_flowchart)
+  observeEvent(input$generate_flowchart,
+               graph(createExampleGraph()))
 
   # Automatically render the graph after updates
-  output$flowchart <- renderGrViz({
+  output$flowchart <- DiagrammeR::renderGrViz({
     renderFlowchart(graph)  %>%
       withProgress(message = "Rendering graph...", value = 0.75)
   })
