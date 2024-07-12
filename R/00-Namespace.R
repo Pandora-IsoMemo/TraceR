@@ -1,6 +1,7 @@
 #' @rawNamespace import(shiny)
 #' @rawNamespace import(DiagrammeR)
 
+#' @importFrom magrittr "%>%"
 #' @importFrom jsonlite write_json fromJSON
 #' @importFrom shinyalert shinyalert
 
