@@ -25,14 +25,24 @@ downloadModuleServer <- function(id, graph) {
           paste("traceR-graph-", Sys.Date(), ".json", sep = "")
         },
         content = function(file) {
-          graph_list <- sapply(graph(), function(x) x)
-          write_json(graph_list, path = file, pretty = TRUE)
+          graph() %>%
+            asGraphList() %>%
+            write_json(path = file, pretty = TRUE)
         }
       )
     }
   )
 }
 
+#' Convert Graph to List
+#'
+#' @param graph Graph object
+#' @return List
+#'
+#' @export
+asGraphList <- function(graph) {
+  sapply(graph, function(x) x)
+}
 
 ### EXAMPLE
 # ui <- fluidPage(

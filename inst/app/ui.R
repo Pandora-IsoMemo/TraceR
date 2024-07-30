@@ -14,8 +14,24 @@ tagList(
           width = 2,
           actionButton("generate_flowchart", "Generate Flowchart"),
           tags$br(),
+          # this is only a placeholder for actual inputs,
+          # can be removed whe we have more inputs that can be stored in a session download:
+          textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
           tags$br(),
           downloadModuleUI("download_unsigned"),
+          checkboxInput(
+            inputId = "download_inputs",
+            label = "Download user inputs and graph",
+            value = FALSE
+          ),
+          conditionalPanel(
+            condition = "input.download_inputs == true",
+            downloadModelUI(
+              id = "session_download",
+              label = "Download Session"
+            ),
+            tags$hr()
+          ),
           importModuleUI("import"),
           tags$br(),
           tags$br()

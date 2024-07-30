@@ -1,0 +1,12 @@
+defaultSource:            # for import
+  session: "file"
+  file: "ckan"
+# file types that are allowed for import from Pandora ("ckan")
+ckanFileTypes:
+  session: "tracer"
+  file: "json"
+defaultFileName: "traceR_session" # for download of user inputs
+fileExtension:
+  session: "tracer"   # for import of inputs & graphs
+  file: "json"
+rPackageName: "TraceR"

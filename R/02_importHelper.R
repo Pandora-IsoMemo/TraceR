@@ -41,7 +41,30 @@ createGraphFromUpload <- function(graph_list) {
 updateGraph <- function(graph, uploadedGraph) {
   observe({
     req(uploadedGraph())
+    logDebug("Update graph")
     new_graph <- createGraphFromUpload(graph_list = uploadedGraph())
     graph(new_graph)
   })
+}
+
+#' Update input with uploaded input
+#'
+#' @param input shiny input
+#' @param output shiny output
+#' @param session shiny session
+#' @param uploaded_inputs reactive, uploaded inputs
+#'
+#' @export
+updateInput <- function(input, output, session, uploaded_inputs) {
+  observe({
+    logDebug("updateInput: Send uploaded_inputs")
+
+    ## update inputs ----
+    inputIDs <- names(uploaded_inputs())
+    inputIDs <- inputIDs[inputIDs %in% names(input)]
+
+    for (i in 1:length(inputIDs)) {
+      session$sendInputMessage(inputIDs[i],  list(value = uploaded_inputs()[[inputIDs[i]]]) )
+    }
+  }) %>% bindEvent(uploaded_inputs())
 }

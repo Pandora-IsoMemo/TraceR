@@ -3,6 +3,7 @@ library(TraceR)
 shinyServer(function(input, output, session) {
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
+  upload_description <- reactiveVal()
 
   # Create example graph after click on button
   observeEvent(input$generate_flowchart,
@@ -10,13 +11,28 @@ shinyServer(function(input, output, session) {
 
   # Automatically render the graph after updates
   output$flowchart <- DiagrammeR::renderGrViz({
-    renderFlowchart(graph)
+    renderFlowchart(graph)  %>%
+      withProgress(message = "Rendering graph...", value = 0.75)
   })
 
   # Download and upload
   downloadModuleServer("download_unsigned", graph = graph)
-  uploadedGraph <- importModuleServer("import")
-  updateGraph(graph = graph, uploadedGraph = uploadedGraph)
+
+  # export inputs and graph
+  downloadModelServer("session_download",
+                      dat = reactive(asGraphList(graph())),
+                      inputs = input,
+                      model = reactive(NULL),
+                      rPackageName = config()[["rPackageName"]],
+                      defaultFileName = config()[["defaultFileName"]],
+                      fileExtension = config()[["fileExtension"]],
+                      modelNotes = upload_description,
+                      triggerUpdate = reactive(TRUE),
+                      onlySettings = TRUE)
+
+  uploaded_data <- importModuleServer("import")
+  updateGraph(graph = graph, uploadedGraph = reactive(uploaded_data$graph))
+  updateInput(input, output, session, uploaded_inputs = reactive(uploaded_data$input))
 
   # Display clicked node id
   displayNodeId(input, output, outputId = "clickMessage")
