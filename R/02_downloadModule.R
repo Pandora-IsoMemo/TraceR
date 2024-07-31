@@ -1,6 +1,7 @@
 #' Download JSON Module UI
 #'
 #' @param id Module ID
+#' @param label Button label
 #' @return Shiny UI elements
 #'
 #' @export
@@ -9,6 +10,12 @@ downloadModuleUI <- function(id, label) {
   downloadButton(ns("download"), label)
 }
 
+#' Dynamically add ui elements for downloadButton
+#'
+#' @param output shiny session output object
+#' @param user_id shinyproxy user id. Can also be NA locally
+#'
+#' @export
 createDownloadModuleUI <- function(output, user_id) {
   output$conditional_download_buttons <- renderUI({
     if (!is.na(user_id)) {
@@ -28,6 +35,8 @@ createDownloadModuleUI <- function(output, user_id) {
 #'
 #' @param id Module ID
 #' @param graph reactive graph object to be converted to JSON
+#' @param private_key private key
+#' @param signed logical indicating if a signed version should be exported
 #' @return None
 #'
 #' @export
@@ -45,11 +54,11 @@ downloadModuleServer <- function(id, graph, private_key, signed) {
           if (signed) {
             # Convert to json
             json_data <- graph_list %>%
-              jsonlite::toJSON(pretty = TRUE, auto_unbox = TRUE)
+              toJSON(pretty = TRUE, auto_unbox = TRUE)
 
             # Create a signature and encode in base64 for easier handling
-            signature <- openssl::signature_create(data = charToRaw(json_data), key = private_key)
-            encoded_signature <- openssl::base64_encode(signature)
+            signature <- signature_create(data = charToRaw(json_data), key = private_key)
+            encoded_signature <- base64_encode(signature)
 
             # Append the signature to the original data
             signed_data <- c(graph_list, c(signature = encoded_signature))

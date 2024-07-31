@@ -4,8 +4,8 @@
 #' @importFrom DataTools downloadModelServer downloadModelUI extractNotes extractObjectFromFile
 #'  importDataUI importDataServer importOptions
 #' @importFrom magrittr "%>%"
-#' @importFrom openssl signature_create
-#' @importFrom jsonlite write_json fromJSON
+#' @importFrom openssl signature_create base64_encode
+#' @importFrom jsonlite write_json fromJSON toJSON
 #' @importFrom shinyalert shinyalert
 #' @importFrom yaml read_yaml
 
