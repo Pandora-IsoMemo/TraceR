@@ -4,10 +4,12 @@
 \alias{downloadModuleUI}
 \title{Download JSON Module UI}
 \usage{
-downloadModuleUI(id)
+downloadModuleUI(id, label)
 }
 \arguments{
 \item{id}{Module ID}
+
+\item{label}{Button label}
 }
 \value{
 Shiny UI elements

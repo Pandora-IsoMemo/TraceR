@@ -4,12 +4,16 @@
 \alias{downloadModuleServer}
 \title{Download JSON Module Server}
 \usage{
-downloadModuleServer(id, graph)
+downloadModuleServer(id, graph, private_key, signed)
 }
 \arguments{
 \item{id}{Module ID}
 
 \item{graph}{reactive graph object to be converted to JSON}
+
+\item{private_key}{private key}
+
+\item{signed}{logical indicating if a signed version should be exported}
 }
 \value{
 None
