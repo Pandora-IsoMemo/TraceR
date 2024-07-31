@@ -4,9 +4,24 @@
 #' @return Shiny UI elements
 #'
 #' @export
-downloadModuleUI <- function(id) {
+downloadModuleUI <- function(id, label) {
   ns <- NS(id)
-  downloadButton(ns("download"), "Download JSON")
+  downloadButton(ns("download"), label)
+}
+
+createDownloadModuleUI <- function(output, user_id) {
+  output$conditional_download_buttons <- renderUI({
+    if (!is.na(user_id)) {
+      tagList(
+        downloadModuleUI("download_unsigned", label = "Download JSON"),
+        tags$br(),
+        tags$br(),
+        downloadModuleUI("download_signed", label = "Download Signed JSON")
+      )
+    } else {
+      downloadModuleUI("download_unsigned", label = "Download JSON")
+    }
+  })
 }
 
 #' Download JSON Module Server
@@ -16,7 +31,7 @@ downloadModuleUI <- function(id) {
 #' @return None
 #'
 #' @export
-downloadModuleServer <- function(id, graph) {
+downloadModuleServer <- function(id, graph, private_key, signed) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -25,9 +40,27 @@ downloadModuleServer <- function(id, graph) {
           paste("traceR-graph-", Sys.Date(), ".json", sep = "")
         },
         content = function(file) {
-          graph() %>%
-            asGraphList() %>%
-            write_json(path = file, pretty = TRUE)
+          graph_list <- graph() %>%
+            asGraphList()
+          if (signed) {
+            # Convert to json
+            json_data <- graph_list %>%
+              jsonlite::toJSON(pretty = TRUE, auto_unbox = TRUE)
+
+            # Create a signature and encode in base64 for easier handling
+            signature <- openssl::signature_create(data = charToRaw(json_data), key = private_key)
+            encoded_signature <- openssl::base64_encode(signature)
+
+            # Append the signature to the original data
+            signed_data <- c(graph_list, c(signature = encoded_signature))
+
+            # Write to json file
+            signed_data %>% write_json(path = file, pretty = TRUE)
+          } else {
+            # Write to json file
+            graph_list %>%
+              write_json(path = file, pretty = TRUE)
+          }
         }
       )
     }

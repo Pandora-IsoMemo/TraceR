@@ -1,6 +1,10 @@
 library(TraceR)
 
 shinyServer(function(input, output, session) {
+  # Shinyproxy user id
+  user_id <- Sys.getenv("SHINYPROXY_USERID", unset = NA) # change this to unset = 123 for local testing
+  private_key <- openssl::read_key("private_key.pem") # to do: store keys and access them here
+
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
   upload_description <- reactiveVal()
@@ -16,7 +20,9 @@ shinyServer(function(input, output, session) {
   })
 
   # Download and upload
-  downloadModuleServer("download_unsigned", graph = graph)
+  createDownloadModuleUI(output, user_id)
+  downloadModuleServer("download_unsigned", graph = graph, private_key = private_key, signed = FALSE)
+  downloadModuleServer("download_signed", graph = graph, private_key = private_key, signed = TRUE)
 
   # export inputs and graph
   downloadModelServer("session_download",
