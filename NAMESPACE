@@ -2,6 +2,7 @@
 
 export(asGraphList)
 export(createDownloadModuleUI)
+export(config)
 export(createExampleGraph)
 export(displayNodeId)
 export(downloadModuleServer)

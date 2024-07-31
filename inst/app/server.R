@@ -25,7 +25,7 @@ shinyServer(function(input, output, session) {
   downloadModuleServer("download_signed", graph = graph, private_key = private_key, signed = TRUE)
 
   # export inputs and graph
-  downloadModelServer("session_download",
+  DataTools::downloadModelServer("session_download",
                       dat = reactive(asGraphList(graph())),
                       inputs = input,
                       model = reactive(NULL),

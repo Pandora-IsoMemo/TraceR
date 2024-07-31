@@ -27,7 +27,7 @@ tagList(
           ),
           conditionalPanel(
             condition = "input.download_inputs == true",
-            downloadModelUI(
+            DataTools::downloadModelUI(
               id = "session_download",
               label = "Download Session"
             ),
