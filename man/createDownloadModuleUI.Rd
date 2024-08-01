@@ -4,12 +4,10 @@
 \alias{createDownloadModuleUI}
 \title{Dynamically add ui elements for downloadButton}
 \usage{
-createDownloadModuleUI(output, user_id)
+createDownloadModuleUI(output)
 }
 \arguments{
 \item{output}{shiny session output object}
-
-\item{user_id}{shinyproxy user id. Can also be NA locally}
 }
 \description{
 Dynamically add ui elements for downloadButton

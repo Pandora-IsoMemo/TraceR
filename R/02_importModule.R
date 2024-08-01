@@ -17,10 +17,11 @@ importModuleUI <- function(id) {
 #' Import JSON Module Server
 #'
 #' @param id Module ID
+#' @param public_key public_key
 #' @return uploaded data
 #'
 #' @export
-importModuleServer <- function(id) {
+importModuleServer <- function(id, public_key) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -43,6 +44,8 @@ importModuleServer <- function(id) {
         # update data
         req(!is.null(uploaded_file()[[1]]))
         data$graph <- uploaded_file()[[1]]
+
+        check_signature_validity(graph_list = data$graph, public_key)
       }) %>%
         bindEvent(uploaded_file())
 
@@ -75,4 +78,55 @@ importModuleServer <- function(id) {
       return(data)
     }
   )
+}
+
+#' Check validity of signature
+#'
+#' @param graph_list list containing graph elements
+#' @param public_key public key
+#'
+#' @export
+check_signature_validity <- function(graph_list, public_key){
+  if (is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))){
+    message <- "Validating signatures of uploaded files is not possible for apps running locally."
+    shinyalert(
+      title = "Warning",
+      text = message,
+      type = "warning"
+    )
+  } else {
+  # App is running on shinyproxy
+  if ("signature" %in% names(graph_list)) {
+    # Check validity of signature
+    received_json_data <- toJSON(graph_list[setdiff(names(graph_list), "signature")], pretty = TRUE, auto_unbox = TRUE)
+    received_signature <- base64_decode(graph_list$signature)
+    # Verify the signature
+    is_valid <- tryCatch({
+      signature_verify(data = charToRaw(received_json_data), sig = received_signature, pubkey = public_key)
+    }, error = function(e) {
+      return(FALSE)
+    })
+    if(is_valid){
+      title <- "Verification successful!"
+      message <- "Signature of uploaded json successfully verified."
+      type <- "info"
+    } else {
+      title <- "Verification failed!"
+      message <- "Signature of uploaded json could not be verified."
+      type <- "warning"
+    }
+    shinyalert(
+      title = title,
+      text = message,
+      type = type
+    )
+  } else {
+    message <- "No signature was found in the uploaded json."
+    shinyalert(
+      title = "Warning",
+      text = message,
+      type = "warning"
+    )
+  }
+  }
 }
