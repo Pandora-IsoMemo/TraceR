@@ -69,6 +69,8 @@ importModuleServer <- function(id, public_key) {
         req(!is.null(uploaded_session()[[1]][["data"]]))
         data$graph <- uploaded_session()[[1]][["data"]]
 
+        check_signature_validity(graph_list = data$graph, public_key)
+
         # Update input if data is available
         req(!is.null(uploaded_session()[[1]][["inputs"]]))
         data$input <- uploaded_session()[[1]][["inputs"]]
