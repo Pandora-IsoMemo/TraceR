@@ -11,8 +11,9 @@ shinyServer(function(input, output, session) {
 
   # Automatically render the graph after updates
   output$flowchart <- DiagrammeR::renderGrViz({
-    renderFlowchart(graph)  %>%
-      withProgress(message = "Rendering graph...", value = 0.75)
+    withProgress(renderFlowchart(graph),
+                 message = "Rendering graph...",
+                 value = 0.75)
   })
 
   # Download and upload
