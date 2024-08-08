@@ -6,6 +6,8 @@ pipeline {
         CUR_PKG_FOLDER = '.' // defaults to root
         TMP_SUFFIX = """${sh(returnStdout: true, script: 'echo `cat /dev/urandom | tr -dc \'a-z\' | fold -w 6 | head -n 1`')}"""
         GH_TOKEN = credentials("github-isomemo")
+        PRIVATE_KEY = credentials('tracer_private_key')
+        PUBLIC_KEY = credentials('tracer_public_key')
     }
     stages {
         stage('Testing') {
@@ -27,6 +29,11 @@ pipeline {
                 # CUR_PROJ
                 # TMP_SUFFIX
                 # GH_TOKEN_PSW -- a GitHub personal access token with write access to the drat repo
+
+                // Write the private key to a file
+                writeFile file: 'inst/app/private_key.pem', text: env.PRIVATE_KEY
+                writeFile file: 'inst/app/public_key.pem', text: env.PUBLIC_KEY
+
                 bash deploy.sh
                 '''
             }
