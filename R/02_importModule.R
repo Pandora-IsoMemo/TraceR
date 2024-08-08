@@ -90,6 +90,8 @@ importModuleServer <- function(id, public_key) {
 #' @export
 check_signature_validity <- function(graph_list, public_key){
   if (is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))){
+    # App is running on locally
+    if ("signature" %in% names(graph_list)) {
     message <- "Found a signature in the uploaded file. Validating signatures of uploaded files is not possible for apps running locally.<br><br>Please use the <a href='https://pandoraapp.earth/app/tracer' target='_blank'>online version of the app</a> for validating files."
     shinyalert(
       title = "Warning",
@@ -97,6 +99,7 @@ check_signature_validity <- function(graph_list, public_key){
       type = "warning",
       html = T
     )
+  }
   } else {
   # App is running on shinyproxy
   if ("signature" %in% names(graph_list)) {
@@ -115,7 +118,7 @@ check_signature_validity <- function(graph_list, public_key){
       type <- "info"
     } else {
       title <- "Verification failed!"
-      message <- "Signature of uploaded json could not be verified."
+      message <- "Signature of uploaded json could not be verified. Please, check the content of the file carefully. The file was altered after it was signed."
       type <- "warning"
     }
     shinyalert(
@@ -124,7 +127,8 @@ check_signature_validity <- function(graph_list, public_key){
       type = type
     )
   } else {
-    message <- "No signature was found in the uploaded json. File could not be verified."
+  # Skip check of validity, because no signature
+    message <- "No signature was found in the uploaded json. Continuing without verification."
     shinyalert(
       title = "Warning",
       text = message,
