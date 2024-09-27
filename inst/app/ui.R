@@ -1,5 +1,4 @@
-library(shiny)
-library(DiagrammeR)
+library(TraceR)
 
 tagList(
   navbarPage(
@@ -15,20 +14,37 @@ tagList(
           width = 2,
           actionButton("generate_flowchart", "Generate Flowchart"),
           tags$br(),
+          # this is only a placeholder for actual inputs,
+          # can be removed whe we have more inputs that can be stored in a session download:
+          textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
           tags$br(),
           downloadModuleUI("download_unsigned"),
+          checkboxInput(
+            inputId = "download_inputs",
+            label = "Download user inputs and graph",
+            value = FALSE
+          ),
+          conditionalPanel(
+            condition = "input.download_inputs == true",
+            DataTools::downloadModelUI(
+              id = "session_download",
+              label = "Download Session"
+            ),
+            tags$hr()
+          ),
           importModuleUI("import"),
           tags$br(),
           tags$br()
         ),
         mainPanel(
-          grVizOutput("flowchart", width = "600px", height = "600px"),
+          DiagrammeR::grVizOutput("flowchart", width = "800px", height = "800px"),
           textOutput("clickMessage")
         ),
       )
     )
   ),
   tags$head(
+    tags$link(rel = "icon", type = "image/x-icon", href = "pandora-isomemo.ico"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     tags$script(src = "https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js")
   ),

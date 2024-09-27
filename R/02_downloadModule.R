@@ -2,6 +2,8 @@
 #'
 #' @param id Module ID
 #' @return Shiny UI elements
+#'
+#' @export
 downloadModuleUI <- function(id) {
   ns <- NS(id)
   downloadButton(ns("download"), "Download JSON")
@@ -12,6 +14,8 @@ downloadModuleUI <- function(id) {
 #' @param id Module ID
 #' @param graph reactive graph object to be converted to JSON
 #' @return None
+#'
+#' @export
 downloadModuleServer <- function(id, graph) {
   moduleServer(
     id,
@@ -21,14 +25,24 @@ downloadModuleServer <- function(id, graph) {
           paste("traceR-graph-", Sys.Date(), ".json", sep = "")
         },
         content = function(file) {
-          graph_list <- sapply(graph(), function(x) x)
-          write_json(graph_list, path = file, pretty = TRUE)
+          graph() %>%
+            asGraphList() %>%
+            write_json(path = file, pretty = TRUE)
         }
       )
     }
   )
 }
 
+#' Convert Graph to List
+#'
+#' @param graph Graph object
+#' @return List
+#'
+#' @export
+asGraphList <- function(graph) {
+  sapply(graph, function(x) x)
+}
 
 ### EXAMPLE
 # ui <- fluidPage(
