@@ -1,48 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/404.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/LICENSE.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/authors.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/index.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/news/index.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/createGraphFromUpload.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/displayNodeId.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleServer.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleUI.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleServer.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleUI.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/renderFlowchart.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/startApplication.html</loc>
-  </url>
-  <url>
-    <loc>https://pandora-isomemo.github.io/TraceR/reference/updateGraph.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://pandora-isomemo.github.io/TraceR/404.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/LICENSE.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/authors.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/index.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/news/index.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/asGraphList.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/config.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/createExampleGraph.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/createGraphFromUpload.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/displayNodeId.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleServer.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/downloadModuleUI.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleServer.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleUI.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/index.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/renderFlowchart.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/startApplication.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/updateGraph.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/updateInput.html</loc></url>
 </urlset>
+
