@@ -39,13 +39,19 @@ shinyServer(function(input, output, session) {
   displayNodeId(input, output, outputId = "clickMessage")
 
   # Custom js to add panzoom after the svg was created
-  # Does not work currently (anymore)
   shinyjs::runjs('
-    setTimeout(function(){ // 500ms timeout as svg is not immediately available
-     var element = document.querySelector("#flowchart svg");
-     panzoom(element, {
-      bounds: true,
-      boundsPadding: 0.1
-    });
-}, 500);')
+  function initializePanzoom() {
+    var element = document.querySelector("#flowchart svg");
+    if (element && element.tagName.toLowerCase() === "svg") {
+      panzoom(element, {
+        bounds: true,
+        boundsPadding: 0.1
+      });
+    } else {
+      // Retry after a short delay if the SVG is not available yet
+      setTimeout(initializePanzoom, 100);
+    }
+  }
+  initializePanzoom();  // Initial call to check and start panzoom
+')
 })
