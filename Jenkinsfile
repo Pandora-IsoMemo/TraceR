@@ -16,7 +16,7 @@ pipeline {
                 cp -f $PRIVATE_KEY inst/app/private_key.pem
                 cp -f $PUBLIC_KEY inst/app/public_key.pem
                 docker build --pull -t tmp-$CUR_PROJ-$TMP_SUFFIX .
-                docker run --rm --network host tmp-$CUR_PROJ-$TMP_SUFFIX check
+                docker run --rm --network host tmp-$CUR_PROJ-$TMP_SUFFIX ls inst/app; check
                 docker rmi tmp-$CUR_PROJ-$TMP_SUFFIX
                 rm -f inst/app/private_key.pem
                 rm -f inst/app/public_key.pem
