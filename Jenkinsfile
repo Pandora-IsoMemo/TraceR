@@ -34,10 +34,6 @@ pipeline {
                 # TMP_SUFFIX
                 # GH_TOKEN_PSW -- a GitHub personal access token with write access to the drat repo
 
-                // Write the private key to a file
-                writeFile file: 'inst/app/private_key.pem', text: env.PRIVATE_KEY
-                writeFile file: 'inst/app/public_key.pem', text: env.PUBLIC_KEY
-
                 bash deploy.sh
                 '''
             }
