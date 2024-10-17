@@ -4,10 +4,12 @@
 \alias{importModuleServer}
 \title{Import JSON Module Server}
 \usage{
-importModuleServer(id)
+importModuleServer(id, public_key)
 }
 \arguments{
 \item{id}{Module ID}
+
+\item{public_key}{public_key}
 }
 \value{
 uploaded data

@@ -1,6 +1,6 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 24.09.0
+Version: 24.10.0
 Authors@R: c(person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut", "cre")))
 Description: An app to create network-like representations.
 License: GPL (>= 3)
@@ -16,6 +16,7 @@ Imports:
     futile.logger,
     jsonlite,
     magrittr,
+    openssl,
     shiny,
     shinyalert,
     yaml
