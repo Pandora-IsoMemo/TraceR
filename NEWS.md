@@ -1,6 +1,15 @@
 # TraceR 24.09.0
 
+## New Features
+
+- option to sign the graph json file with a key pair
+- option to download & import signed json
+- deployment adjustments for shinyproxy
+
+# TraceR 24.09.0
+
 ## Bug Fixes
+
 - fix issue with zoom (#17)
 - add logo as icon for the browser tab
 
