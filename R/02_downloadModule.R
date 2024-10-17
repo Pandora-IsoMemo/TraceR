@@ -13,12 +13,11 @@ downloadModuleUI <- function(id, label) {
 #' Dynamically add ui elements for downloadButton
 #'
 #' @param output shiny session output object
-#' @param user_id shinyproxy user id. Can also be NA locally
 #'
 #' @export
-createDownloadModuleUI <- function(output, user_id) {
+createDownloadModuleUI <- function(output) {
   output$conditional_download_buttons <- renderUI({
-    if (!is.na(user_id)) {
+    if (!is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))) {
       tagList(
         downloadModuleUI("download_unsigned", label = "Download JSON"),
         tags$br(),
