@@ -1,3 +1,9 @@
+# TraceR 24.09.0
+
+## Bug Fixes
+- fix issue with zoom (#17)
+- add logo as icon for the browser tab
+
 # TraceR 24.07.0
 
 ## New Features

@@ -38,13 +38,14 @@ tagList(
           tags$br()
         ),
         mainPanel(
-          DiagrammeR::grVizOutput("flowchart", width = "600px", height = "600px"),
+          DiagrammeR::grVizOutput("flowchart", width = "800px", height = "800px"),
           textOutput("clickMessage")
         ),
       )
     )
   ),
   tags$head(
+    tags$link(rel = "icon", type = "image/x-icon", href = "pandora-isomemo.ico"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     tags$script(src = "https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js")
   ),
