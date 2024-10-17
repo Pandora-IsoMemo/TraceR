@@ -1,26 +1,25 @@
 library(TraceR)
 
 shinyServer(function(input, output, session) {
-  private_key <- openssl::read_key(
-    system.file("app", "private_key.pem", package = "TraceR")
-  )
-  public_key <- openssl::read_pubkey(
-    system.file("app", "public_key.pem", package = "TraceR")
-  )
+  private_key <- openssl::read_key("inst/app/private_key.pem")
+  public_key <- openssl::read_pubkey("inst/app/public_key.pem")
 
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
   upload_description <- reactiveVal()
 
   # Create example graph after click on button
-  observeEvent(input$generate_flowchart,
-               graph(createExampleGraph()))
+  observeEvent(
+    input$generate_flowchart,
+    graph(createExampleGraph())
+  )
 
   # Automatically render the graph after updates
   output$flowchart <- DiagrammeR::renderGrViz({
     withProgress(renderFlowchart(graph),
-                 message = "Rendering graph...",
-                 value = 0.75)
+      message = "Rendering graph...",
+      value = 0.75
+    )
   })
 
   # Download and upload
@@ -30,15 +29,16 @@ shinyServer(function(input, output, session) {
 
   # export inputs and graph
   DataTools::downloadModelServer("session_download",
-                      dat = reactive(asGraphList(graph())),
-                      inputs = input,
-                      model = reactive(NULL),
-                      rPackageName = config()[["rPackageName"]],
-                      defaultFileName = config()[["defaultFileName"]],
-                      fileExtension = config()[["fileExtension"]],
-                      modelNotes = upload_description,
-                      triggerUpdate = reactive(TRUE),
-                      onlySettings = TRUE)
+    dat = reactive(asGraphList(graph())),
+    inputs = input,
+    model = reactive(NULL),
+    rPackageName = config()[["rPackageName"]],
+    defaultFileName = config()[["defaultFileName"]],
+    fileExtension = config()[["fileExtension"]],
+    modelNotes = upload_description,
+    triggerUpdate = reactive(TRUE),
+    onlySettings = TRUE
+  )
 
   uploaded_data <- importModuleServer("import", public_key)
   updateGraph(graph = graph, uploadedGraph = reactive(uploaded_data$graph))
