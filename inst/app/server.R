@@ -1,8 +1,12 @@
 library(TraceR)
 
 shinyServer(function(input, output, session) {
-  private_key <- openssl::read_key("private_key.pem") # to do: store keys and access them here
-  public_key <- openssl::read_pubkey("public_key.pem") # to do: store keys and access them here
+  private_key <- openssl::read_key(
+    system.file("app", "private_key.pem", package = "TraceR")
+  )
+  public_key <- openssl::read_pubkey(
+    system.file("app", "public_key.pem", package = "TraceR")
+  )
 
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
