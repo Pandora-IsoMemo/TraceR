@@ -1,11 +1,8 @@
 library(TraceR)
-library(futile.logger)
 
 shinyServer(function(input, output, session) {
-  flog.info(getwd())
-  flog.info(list.files())
-  private_key <- openssl::read_key("private_key.pem")
-  public_key <- openssl::read_pubkey("public_key.pem")
+  private_key <- openssl::read_key("/app/inst/app/private_key.pem")
+  public_key <- openssl::read_pubkey("/app/inst/app/public_key.pem")
 
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
