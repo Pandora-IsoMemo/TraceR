@@ -1,5 +1,5 @@
 library(TraceR)
-libary(futile.logger)
+library(futile.logger)
 
 shinyServer(function(input, output, session) {
   flog.info(getwd())
