@@ -4,6 +4,7 @@ ADD . .
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+    libglpk-dev \
     qpdf \
     pandoc \
     && echo "options(repos = c(getOption('repos'), PANDORA = 'https://Pandora-IsoMemo.github.io/drat/'))" >> /usr/local/lib/R/etc/Rprofile.site \
