@@ -1,7 +1,9 @@
 library(TraceR)
+libary(futile.logger)
 
 shinyServer(function(input, output, session) {
-  cat(getwd())
+  flog.info(getwd())
+  flog.info(list.files())
   private_key <- openssl::read_key("private_key.pem")
   public_key <- openssl::read_pubkey("public_key.pem")
 
