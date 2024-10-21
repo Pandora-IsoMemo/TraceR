@@ -2,6 +2,7 @@
 # It's called libWin resp. libLinux. As it is on the first libPath position,
 # packages are installed into this directory by default. This enables working in
 # a sandbox.
+
 .First <- function() {
   # Check operating system
   if (Sys.info()["sysname"] == "Windows") {
@@ -12,7 +13,10 @@
   } else if (Sys.info()["sysname"] == "Darwin") {
     .libPaths(new = c(paste(getwd(), "libMac", sep = "/"), .libPaths()))
   }
-  options(repos = c(getOption("repos"), PANDORA = "https://Pandora-IsoMemo.github.io/drat/"))
+  options(repos = c(getOption("repos"),
+    PANDORA = "https://Pandora-IsoMemo.github.io/drat/",
+    INWTLab = "https://inwtlab.github.io/drat/"
+  ))
 }
 
 .First()

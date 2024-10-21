@@ -13,6 +13,7 @@ Config/testthat/edition: 3
 Imports:
     DataTools (>= 24.07.0),
     DiagrammeR,
+    DiagrammeRsvg,
     futile.logger,
     jsonlite,
     magrittr,

@@ -1,8 +1,23 @@
 library(TraceR)
 
 shinyServer(function(input, output, session) {
-  private_key <- openssl::read_key("/app/inst/app/private_key.pem")
-  public_key <- openssl::read_pubkey("/app/inst/app/public_key.pem")
+  # Adjust Path to environment
+  if (!is.na(Sys.getenv("RUNNING_IN_DOCKER", unset = NA))) {
+    path_private <- "/app/inst/app/private_key.pem"
+    path_public <- "/app/inst/app/public_key.pem"
+  } else {
+    path_private <- system.file("app/private_key.pem", package = "TraceR")
+    path_public <- system.file("app/public_key.pem", package = "TraceR")
+  }
+
+  # Check if key files exists
+  if (file.exists(path_private) && file.exists(path_public)) {
+    private_key <- openssl::read_key(path_private)
+    public_key <- openssl::read_pubkey(path_public)
+  } else {
+    private_key <- NULL
+    public_key <- NULL
+  }
 
   # Reactive graph element that is updated regularly
   graph <- reactiveVal()
@@ -23,9 +38,19 @@ shinyServer(function(input, output, session) {
   })
 
   # Download and upload
-  createDownloadModuleUI(output)
-  downloadModuleServer("download_unsigned", graph = graph, private_key = private_key, signed = FALSE)
-  downloadModuleServer("download_signed", graph = graph, private_key = private_key, signed = TRUE)
+  createDownloadModuleUI(output, private_key)
+  downloadModuleServer(
+    "download_unsigned",
+    graph = graph,
+    private_key = private_key,
+    signed = FALSE
+  )
+  downloadModuleServer(
+    "download_signed",
+    graph = graph,
+    private_key = private_key,
+    signed = TRUE
+  )
 
   # export inputs and graph
   DataTools::downloadModelServer("session_download",

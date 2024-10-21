@@ -13,11 +13,16 @@ downloadModuleUI <- function(id, label) {
 #' Dynamically add ui elements for downloadButton
 #'
 #' @param output shiny session output object
+#' @private_key Private key used for the conditional logic to add a signed JSON
+#' download button or not
 #'
 #' @export
-createDownloadModuleUI <- function(output) {
+createDownloadModuleUI <- function(output, private_key) {
   output$conditional_download_buttons <- renderUI({
-    if (!is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))) {
+    if (
+      !is.na(Sys.getenv("SHINYPROXY_ID", unset = NA)) &&
+        !is.null(private_key)
+    ) {
       tagList(
         downloadModuleUI("download_unsigned", label = "Download JSON"),
         tags$br(),
