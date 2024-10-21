@@ -20,7 +20,7 @@ downloadModuleUI <- function(id, label) {
 createDownloadModuleUI <- function(output, private_key) {
   output$conditional_download_buttons <- renderUI({
     if (
-      !is.na(Sys.getenv("SHINYPROXY_ID", unset = NA)) &&
+      !is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA)) &&
         !is.null(private_key)
     ) {
       tagList(

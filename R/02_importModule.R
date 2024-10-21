@@ -90,7 +90,7 @@ importModuleServer <- function(id, public_key) {
 #' @export
 check_signature_validity <- function(graph_list, public_key) {
   if (
-    is.na(Sys.getenv("SHINYPROXY_ID", unset = NA))
+    is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))
     && is.null(public_key)
   ) {
     # App is running on locally
