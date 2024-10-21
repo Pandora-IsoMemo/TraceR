@@ -2,6 +2,12 @@
 
 ## New Features
 
+- check enviroment for download/import enviroment
+
+# TraceR 24.09.0
+
+## New Features
+
 - option to sign the graph json file with a key pair
 - option to download & import signed json
 - deployment adjustments for shinyproxy
