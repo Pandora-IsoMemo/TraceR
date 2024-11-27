@@ -4,10 +4,13 @@
 \alias{createDownloadModuleUI}
 \title{Dynamically add ui elements for downloadButton}
 \usage{
-createDownloadModuleUI(output)
+createDownloadModuleUI(output, private_key)
 }
 \arguments{
 \item{output}{shiny session output object}
+
+\item{private_key}{Private key used for the conditional logic to add a signed JSON
+download button or not}
 }
 \description{
 Dynamically add ui elements for downloadButton
