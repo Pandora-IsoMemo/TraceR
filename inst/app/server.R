@@ -73,19 +73,5 @@ shinyServer(function(input, output, session) {
   displayNodeId(input, output, outputId = "clickMessage")
 
   # Custom js to add panzoom after the svg was created
-  shinyjs::runjs('
-  function initializePanzoom() {
-    var element = document.querySelector("#flowchart svg");
-    if (element && element.tagName.toLowerCase() === "svg") {
-      panzoom(element, {
-        bounds: true,
-        boundsPadding: 0.1
-      });
-    } else {
-      // Retry after a short delay if the SVG is not available yet
-      setTimeout(initializePanzoom, 100);
-    }
-  }
-  initializePanzoom();  // Initial call to check and start panzoom
-')
+  initialize_graph_zooming()
 })

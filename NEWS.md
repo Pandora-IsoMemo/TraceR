@@ -1,3 +1,9 @@
+# TraceR 24.11.0
+
+## Bug Fixes
+
+- fix issue with zoom (#17)
+
 # TraceR 24.09.0
 
 ## New Features
