@@ -20,5 +20,6 @@ Imports:
     openssl,
     shiny,
     shinyalert,
+    shinyjs,
     yaml
 URL: https://pandora-isomemo.github.io/TraceR/
