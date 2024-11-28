@@ -5,7 +5,9 @@
 <url><loc>https://pandora-isomemo.github.io/TraceR/index.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/news/index.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/asGraphList.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/check_signature_validity.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/config.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/createDownloadModuleUI.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/createExampleGraph.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/createGraphFromUpload.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/displayNodeId.html</loc></url>
@@ -14,6 +16,7 @@
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleServer.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/importModuleUI.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/index.html</loc></url>
+<url><loc>https://pandora-isomemo.github.io/TraceR/reference/initialize_graph_zooming.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/renderFlowchart.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/startApplication.html</loc></url>
 <url><loc>https://pandora-isomemo.github.io/TraceR/reference/updateGraph.html</loc></url>
