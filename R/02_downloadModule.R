@@ -13,7 +13,7 @@ downloadModuleUI <- function(id, label) {
 #' Dynamically add ui elements for downloadButton
 #'
 #' @param output shiny session output object
-#' @private_key Private key used for the conditional logic to add a signed JSON
+#' @param private_key Private key used for the conditional logic to add a signed JSON
 #' download button or not
 #'
 #' @export
