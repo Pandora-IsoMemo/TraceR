@@ -8,9 +8,9 @@ importModuleUI <- function(id) {
   ns <- NS(id)
 
   tagList(
-    importDataUI(ns("file_import"), label = "Import JSON"),
+    importUI(ns("file_import"), label = "Import JSON"),
     tags$br(), tags$br(),
-    importDataUI(ns("session_import"), label = "Import Session")
+    importUI(ns("session_import"), label = "Import Session")
   )
 }
 
@@ -29,7 +29,7 @@ importModuleServer <- function(id, public_key) {
                              input = NULL)
 
       # import data from JSON file from Pandora, url, file
-      uploaded_file <- importDataServer(
+      uploaded_file <- importServer(
         "file_import",
         importType = "list",
         defaultSource = config()[["defaultSource"]][["file"]],
@@ -50,7 +50,7 @@ importModuleServer <- function(id, public_key) {
         bindEvent(uploaded_file())
 
       # load session
-      uploaded_session <- importDataServer(
+      uploaded_session <- importServer(
         "session_import",
         title = "Session import",
         importType = "model",
