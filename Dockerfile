@@ -1,4 +1,4 @@
-FROM inwt/r-shiny:4.4.1
+FROM inwt/r-shiny:4.4.3
 
 ENV RUNNING_IN_DOCKER=TRUE
 
