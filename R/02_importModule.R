@@ -33,8 +33,7 @@ importModuleServer <- function(id, public_key) {
         "file_import",
         importType = "list",
         defaultSource = config()[["defaultSource"]][["file"]],
-        ckanFileTypes = config()[["ckanFileTypes"]][["file"]],
-        fileExtension = config()[["fileExtension"]][["file"]]
+        ckanFileTypes = config()[["ckanFileTypes"]][["file"]]
       )
 
       observe({
@@ -56,7 +55,6 @@ importModuleServer <- function(id, public_key) {
         importType = "model",
         defaultSource = config()[["defaultSource"]][["session"]],
         ckanFileTypes = config()[["ckanFileTypes"]][["session"]],
-        fileExtension = config()[["fileExtension"]][["session"]],
         onlySettings = TRUE,
         options = importOptions(rPackageName = config()[["rPackageName"]])
       )
