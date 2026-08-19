@@ -1,6 +1,9 @@
-FROM inwt/r-shiny:4.4.1
+FROM inwt/r-shiny:4.4.3
 
 ENV RUNNING_IN_DOCKER=TRUE
+
+RUN Rscript -e "remotes::install_github('r-lib/httr2@v1.2.3')" \
+    && Rscript -e "remotes::install_github('tidyverse/ellmer@v0.4.1')"
 
 ADD . .
 
