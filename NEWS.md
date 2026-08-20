@@ -1,3 +1,8 @@
+# TraceR 26.08.0
+
+## Updates
+- Updated to most recent DataTools version
+
 # TraceR 24.11.0
 
 ## Bug Fixes

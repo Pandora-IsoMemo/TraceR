@@ -1,18 +1,20 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 24.11.0
+Version: 26.08.0
 Authors@R: c(person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut", "cre")))
 Description: An app to create network-like representations.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
-Suggests: 
+RoxygenNote: 7.3.3
+Suggests:
+    PEITHO,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports:
-    DataTools (>= 24.07.0),
+    DataTools (>= 26.08.2),
     DiagrammeR,
+    DiagrammeRsvg,
     futile.logger,
     jsonlite,
     magrittr,
