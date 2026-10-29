@@ -2,6 +2,8 @@
 # It's called libWin resp. libLinux. As it is on the first libPath position,
 # packages are installed into this directory by default. This enables working in
 # a sandbox.
+message("Loading project .Rprofile")
+message(">>> .Rprofile loaded from: ", getwd())
 
 .First <- function() {
   # Check operating system
@@ -13,7 +15,7 @@
   } else if (Sys.info()["sysname"] == "Darwin") {
     .libPaths(new = c(paste(getwd(), "libMac", sep = "/"), .libPaths()))
   }
-  
+
   options(repos = c(getOption("repos"),
     PANDORA = "https://Pandora-IsoMemo.github.io/drat/",
     INWTLab = "https://inwtlab.github.io/drat/"
@@ -22,7 +24,7 @@
 
 .First()
 
-if (interactive()) {
+if (as.logical(Sys.getenv("SHOW_DEBUG", unset = "FALSE"))) {
   library(futile.logger)
   futile.logger::flog.threshold(DEBUG)
 }
