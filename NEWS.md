@@ -1,3 +1,8 @@
+# TraceR 26.10.2
+
+## New Features
+- Added conversion from TraceR tables to DiagrammeR-compatible node and edge tables for graph visualization. (#38)
+
 # TraceR 26.10.1
 
 ## New Features
