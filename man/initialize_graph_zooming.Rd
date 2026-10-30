@@ -4,7 +4,10 @@
 \alias{initialize_graph_zooming}
 \title{Initialize panzoom}
 \usage{
-initialize_graph_zooming()
+initialize_graph_zooming(outputId = "flowchart")
+}
+\arguments{
+\item{outputId}{Graph output ID, including any Shiny module namespace}
 }
 \description{
 Initialize panzoom

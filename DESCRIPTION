@@ -1,15 +1,20 @@
 Package: TraceR
 Title: An app to create network-like representations
 Version: 26.08.0
-Authors@R: c(person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut", "cre")))
+Authors@R: c(
+    person("Ricardo", "Fernandes", email = "ldv1452@gmail.com", role = c("aut")),
+    person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut")),
+    person("Antonia", "Runge", email = "antonia.runge@inwt-statistics.de", role = c("aut", "cre"))
+    )
 Description: An app to create network-like representations.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Suggests:
+    htmltools,
     PEITHO,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    withr
 Config/testthat/edition: 3
 Imports:
     DataTools (>= 26.08.2),
@@ -22,5 +27,7 @@ Imports:
     shiny,
     shinyalert,
     shinyjs,
+    shinyTools,
     yaml
 URL: https://pandora-isomemo.github.io/TraceR/
+Config/roxygen2/version: 8.0.0

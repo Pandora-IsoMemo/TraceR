@@ -1,3 +1,4 @@
+library(shiny)
 library(TraceR)
 
 tagList(
@@ -8,42 +9,21 @@ tagList(
     collapsible = TRUE,
     id = "tab",
     tabPanel(
-      title = "Network",
+      title = "Network Project",
       sidebarLayout(
         sidebarPanel(
           width = 2,
-          actionButton("generate_flowchart", "Generate Flowchart"),
-          tags$br(),
-          # this is only a placeholder for actual inputs,
-          # can be removed whe we have more inputs that can be stored in a session download:
-          textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
-          tags$br(),
-          # this is only a placeholder for actual inputs,
-          # can be removed whe we have more inputs that can be stored in a session download:
-          textInput("test_input", "Test Input", placeholder = "Please add some text ..."),
-          tags$br(),
-          uiOutput("conditional_download_buttons"),
-          checkboxInput(
-            inputId = "download_inputs",
-            label = "Download user inputs and graph",
-            value = FALSE
-          ),
-          conditionalPanel(
-            condition = "input.download_inputs == true",
-            DataTools::downloadModelUI(
-              id = "session_download",
-              label = "Download Session"
-            ),
-            tags$hr()
-          ),
-          importModuleUI("import"),
-          tags$br(),
-          tags$br()
+          mod_network_sidebar_ui("network")
         ),
         mainPanel(
-          DiagrammeR::grVizOutput("flowchart", width = "800px", height = "800px"),
-          textOutput("clickMessage")
-        ),
+          tabsetPanel(
+            id = "network_tabs",
+            tabPanel(
+              title = "Network",
+              mod_network_ui("network")
+            )
+          )
+        )
       )
     )
   ),
@@ -52,5 +32,9 @@ tagList(
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     tags$script(src = "https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js")
   ),
-  shinyjs::useShinyjs()
+  shinyjs::useShinyjs(),
+  shinyTools::headerButtonsUI(
+    id = "header",
+    help_link = "https://pandora-isomemo.github.io/TraceR/"
+  )
 )
