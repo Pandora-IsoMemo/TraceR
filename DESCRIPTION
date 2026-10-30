@@ -1,6 +1,6 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 26.10.0
+Version: 26.10.1
 Date: 2026-10-30
 Authors@R: c(
     person("Ricardo", "Fernandes", email = "ldv1452@gmail.com", role = c("aut")),
