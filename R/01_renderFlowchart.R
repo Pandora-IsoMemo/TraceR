@@ -23,11 +23,14 @@ renderFlowchart <- function(graph) {
 
 #' Initialize panzoom
 #'
+#' @param outputId Graph output ID, including any Shiny module namespace
 #' @export
-initialize_graph_zooming <- function() {
-  shinyjs::runjs('
+initialize_graph_zooming <- function(outputId = "flowchart") {
+  selector <- jsonlite::toJSON(paste0("#", outputId), auto_unbox = TRUE)
+  shinyjs::runjs(paste0('
+  var graphSelector = ', selector, ';
   function initializePanzoom() {
-  var element = document.querySelector("#flowchart svg");
+  var element = document.querySelector(graphSelector + " svg");
 
   if (element && element.tagName.toLowerCase() === "svg") {
     // Check if panzoom is already initialized
@@ -43,9 +46,9 @@ initialize_graph_zooming <- function() {
 
 // Function to observe changes in the graph container
 function setupGraphObserver() {
-  var targetNode = document.querySelector("#flowchart");
+  var targetNode = document.querySelector(graphSelector);
   if (!targetNode) {
-    console.error("Flowchart container not found.");
+    console.error("Graph container not found.");
     return;
   }
 
@@ -69,5 +72,5 @@ function setupGraphObserver() {
 // Initial call to setup observer and panzoom
 setupGraphObserver();
 initializePanzoom();
-')
+'))
 }

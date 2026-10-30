@@ -19,59 +19,9 @@ shinyServer(function(input, output, session) {
     public_key <- NULL
   }
 
-  # Reactive graph element that is updated regularly
-  graph <- reactiveVal()
-  upload_description <- reactiveVal()
-
-  # Create example graph after click on button
-  observeEvent(
-    input$generate_flowchart,
-    graph(createExampleGraph())
-  )
-
-  # Automatically render the graph after updates
-  output$flowchart <- DiagrammeR::renderGrViz({
-    withProgress(renderFlowchart(graph),
-      message = "Rendering graph...",
-      value = 0.75
-    )
-  })
-
-  # Download and upload
-  createDownloadModuleUI(output, private_key)
-  downloadModuleServer(
-    "download_unsigned",
-    graph = graph,
+  mod_network_server(
+    "network",
     private_key = private_key,
-    signed = FALSE
+    public_key = public_key
   )
-  downloadModuleServer(
-    "download_signed",
-    graph = graph,
-    private_key = private_key,
-    signed = TRUE
-  )
-
-  # export inputs and graph
-  DataTools::downloadModelServer("session_download",
-    dat = reactive(asGraphList(graph())),
-    inputs = input,
-    model = reactive(NULL),
-    rPackageName = config()[["rPackageName"]],
-    defaultFileName = config()[["defaultFileName"]],
-    fileExtension = config()[["fileExtension"]],
-    modelNotes = upload_description,
-    triggerUpdate = reactive(TRUE),
-    onlySettings = TRUE
-  )
-
-  uploaded_data <- importModuleServer("import", public_key)
-  updateGraph(graph = graph, uploadedGraph = reactive(uploaded_data$graph))
-  updateInput(input, output, session, uploaded_inputs = reactive(uploaded_data$input))
-
-  # Display clicked node id
-  displayNodeId(input, output, outputId = "clickMessage")
-
-  # Custom js to add panzoom after the svg was created
-  initialize_graph_zooming()
 })
