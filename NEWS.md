@@ -1,7 +1,7 @@
 # TraceR 26.10.0
 
 ## Updates
-- Extracted Network UI and server logic into a Shiny module to make future extensions easier
+- Extracted Network UI and server logic into a Shiny module to make future extensions easier (#37)
 - Updated packaging, Git, and Docker exclusions.
 
 # TraceR 26.08.0
