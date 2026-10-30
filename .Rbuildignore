@@ -6,7 +6,7 @@
 # Local/user config
 ^\.Rprofile$
 ^\.Renviron$
-^\.env$
+^\.env($|\.)
 
 # Version control / GitHub
 ^\.git$
