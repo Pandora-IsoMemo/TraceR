@@ -1,3 +1,8 @@
+# TraceR 26.10.1
+
+## New Features
+- Added a list-based `tracer_table` model and constructor for single-level networks, with five renameable optional columns and structured validation that supports incomplete editing states. (#39)
+
 # TraceR 26.10.0
 
 ## Updates
