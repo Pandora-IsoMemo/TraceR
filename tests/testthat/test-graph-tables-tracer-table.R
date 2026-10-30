@@ -34,9 +34,7 @@ test_that("empty tracer_tables convert to typed empty graph tables and render", 
   expect_type(graph_tables$nodes$id, "integer")
   expect_type(graph_tables$edges$from, "integer")
 
-  svg <- DiagrammeRsvg::export_svg(
-    DiagrammeR::render_graph(make_diagrammer_graph(graph_tables), as_svg = TRUE)
-  )
+  svg <- DiagrammeR::render_graph(make_diagrammer_graph(graph_tables), as_svg = TRUE)
   expect_match(svg, "<svg")
 })
 
