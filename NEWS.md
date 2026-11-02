@@ -3,7 +3,7 @@
 # TraceR 26.11.0
 
 ## New Features
-- Added an editable Table tab backed by one `tracer_table` state.
+- Added an editable Table tab backed by one `tracer_table` state (#40).
 - Network graphs are now derived from the shared table, with validation feedback for invalid intermediate edits.
 - Added a deterministic research workflow example and table-based session persistence.
 - Added an Empty Network action.
