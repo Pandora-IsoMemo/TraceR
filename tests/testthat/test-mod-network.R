@@ -30,8 +30,6 @@ test_that("Network module derives its graph from the shared tracer_table", {
       expect_null(graph())
       expect_match(output$flowchart_container$html, "Graph unavailable", fixed = TRUE)
       expect_false(grepl("html-widget-output", output$flowchart_container$html, fixed = TRUE))
-      download_html <- output$conditional_download_buttons$html
-      expect_true(is.null(download_html) || !grepl("download_unsigned-download", download_html, fixed = TRUE))
     }
   )
 })
@@ -54,40 +52,7 @@ test_that("Network UI uses its module namespace", {
 
   expect_match(html, 'id="sidebar-generate_example"', fixed = TRUE)
   expect_match(html, 'id="sidebar-download_inputs"', fixed = TRUE)
-  expect_match(html, 'id="network-conditional_download_buttons"', fixed = TRUE)
+  expect_false(grepl("Download JSON", html, fixed = TRUE))
+  expect_false(grepl("Download Signed JSON", html, fixed = TRUE))
   expect_match(html, 'input[&#39;sidebar-download_inputs&#39;] == true', fixed = TRUE)
-})
-
-test_that("signed downloads are shown only when a private key is available", {
-  withr::local_envvar(c(SHINYPROXY_USERID = "test-user"))
-
-  shiny::testServer(
-    mod_network_server,
-    args = list(
-      private_key = NULL,
-      current_table = shiny::reactiveVal(createExampleTracerTable())
-    ),
-    {
-      session$flushReact()
-      download_ui <- output$conditional_download_buttons$html
-
-      expect_match(download_ui, "download_unsigned-download", fixed = TRUE)
-      expect_false(grepl("download_signed-download", download_ui, fixed = TRUE))
-    }
-  )
-
-  shiny::testServer(
-    mod_network_server,
-    args = list(
-      private_key = structure(list(), class = "test_private_key"),
-      current_table = shiny::reactiveVal(createExampleTracerTable())
-    ),
-    {
-      session$flushReact()
-      download_ui <- output$conditional_download_buttons$html
-
-      expect_match(download_ui, "download_unsigned-download", fixed = TRUE)
-      expect_match(download_ui, "download_signed-download", fixed = TRUE)
-    }
-  )
 })

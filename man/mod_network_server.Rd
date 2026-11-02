@@ -14,7 +14,7 @@ mod_network_server(
 \arguments{
 \item{id}{Module ID}
 
-\item{private_key}{Private key used to sign graph downloads}
+\item{private_key}{Deprecated; graph JSON downloads are provided by the sidebar}
 
 \item{public_key}{Deprecated; retained for compatibility}
 

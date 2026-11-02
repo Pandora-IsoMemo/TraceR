@@ -1,5 +1,11 @@
 # TraceR (development version)
 
+# TraceR 26.11.1
+
+## New Features
+- Added versioned network-table JSON import/export with RSA-SHA256 signatures and session-local Save/Reset (#41).
+- Legacy graph JSON download controls are removed from the app; exported graph helpers remain for compatibility.
+
 # TraceR 26.11.0
 
 ## New Features

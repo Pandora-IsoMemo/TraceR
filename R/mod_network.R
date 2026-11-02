@@ -11,8 +11,7 @@ mod_network_ui <- function(id) {
     uiOutput(ns("graph_status")),
     uiOutput(ns("flowchart_container")),
     textOutput(ns("clickMessage")),
-    tags$hr(),
-    uiOutput(ns("conditional_download_buttons"))
+    tags$hr()
   )
 }
 
@@ -31,7 +30,7 @@ mod_network_sidebar_ui <- function(id) {
 #' Network module server
 #'
 #' @param id Module ID
-#' @param private_key Private key used to sign graph downloads
+#' @param private_key Deprecated; graph JSON downloads are provided by the sidebar
 #' @param public_key Deprecated; retained for compatibility
 #' @param current_table Reactive value containing the shared `tracer_table`
 #' @return Reactive DiagrammeR graph derived from `current_table`
@@ -91,34 +90,6 @@ mod_network_server <- function(id, private_key = NULL, public_key = NULL, curren
       )
     })
 
-    output$conditional_download_buttons <- renderUI({
-      if (is.null(graph())) return(NULL)
-
-      if (
-        !is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA)) &&
-          !is.null(private_key)
-      ) {
-        tagList(
-          downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON"),
-          downloadModuleUI(session$ns("download_signed"), label = "Download Signed JSON")
-        )
-      } else {
-        downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON")
-      }
-    })
-
-    downloadModuleServer(
-      "download_unsigned",
-      graph = graph,
-      private_key = private_key,
-      signed = FALSE
-    )
-    downloadModuleServer(
-      "download_signed",
-      graph = graph,
-      private_key = private_key,
-      signed = TRUE
-    )
     displayNodeId(input, output, outputId = "clickMessage", graph = graph)
     initialize_graph_zooming(session$ns("flowchart_container"))
 
