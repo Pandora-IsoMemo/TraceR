@@ -7,6 +7,7 @@ mod_network_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
+    tags$br(),
     uiOutput(ns("graph_status")),
     uiOutput(ns("flowchart_container")),
     textOutput(ns("clickMessage")),
@@ -99,8 +100,6 @@ mod_network_server <- function(id, private_key = NULL, public_key = NULL, curren
       ) {
         tagList(
           downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON"),
-          tags$br(),
-          tags$br(),
           downloadModuleUI(session$ns("download_signed"), label = "Download Signed JSON")
         )
       } else {

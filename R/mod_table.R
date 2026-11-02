@@ -11,6 +11,7 @@ mod_table_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
+    tags$br(),
     fluidRow(
       column(2, actionButton(ns("add_row"), "Add row")),
       column(2, actionButton(ns("delete_row"), "Delete selected row")),
@@ -21,6 +22,7 @@ mod_table_ui <- function(id) {
         actionButton(ns("rename_optional_column"), "Rename column")
       )
     ),
+    tags$hr(),
     uiOutput(ns("feedback")),
     uiOutput(ns("validation")),
     DT::DTOutput(ns("table"))

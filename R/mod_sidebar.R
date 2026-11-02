@@ -13,9 +13,9 @@ mod_sidebar_ui <- function(id) {
 
   tagList(
     actionButton(ns("generate_example"), "Example Network"),
-    tags$br(),
+    tags$br(), tags$br(),
     actionButton(ns("empty_network"), "Empty Network"),
-    tags$br(),
+    tags$br(), tags$br(),
     checkboxInput(
       inputId = ns("download_inputs"),
       label = "Download user inputs and network",
