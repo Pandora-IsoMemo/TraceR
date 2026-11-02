@@ -1,8 +1,10 @@
 #' Table module UI
 #'
 #' Displays the eleven-column `tracer_table` with editable cells, row controls,
-#' optional-column renaming, and validation feedback. Required column names are
-#' fixed; optional names are stored only in the data frame.
+#' optional-column renaming, and validation feedback. All rows share a fixed-
+#' height scrolling viewport without pagination. New tables start at the top,
+#' while adding a row scrolls to the bottom. Required column names are fixed;
+#' optional names are stored only in the data frame.
 #'
 #' @param id Module ID
 #' @return Editable table UI
@@ -25,7 +27,22 @@ mod_table_ui <- function(id) {
     tags$hr(),
     uiOutput(ns("feedback")),
     uiOutput(ns("validation")),
-    DT::DTOutput(ns("table"))
+    DT::DTOutput(ns("table")),
+    tags$style(htmltools::HTML("#table-table .dataTables_scrollBody tbody td { height: 1.5em; }")),
+    tags$script(htmltools::HTML("
+      Shiny.addCustomMessageHandler('traceRScrollTable', function(message) {
+        function scrollTable() {
+          var output = document.getElementById(message.id);
+          var body = output && output.querySelector('.dataTables_scrollBody');
+          if (body) {
+            body.scrollTop = message.action === 'bottom' ? body.scrollHeight : 0;
+          }
+        }
+        [0, 100, 300].forEach(function(delay) {
+          setTimeout(scrollTable, delay);
+        });
+      });
+    "))
   )
 }
 
@@ -42,17 +59,53 @@ mod_table_ui <- function(id) {
 mod_table_server <- function(id, current_table) {
   moduleServer(id, function(input, output, session) {
     feedback <- reactiveVal(NULL)
+    column_names <- reactiveVal(isolate(names(current_table()$data)))
+    proxy <- DT::dataTableProxy("table", session = session)
+
+    request_scroll <- function(action) {
+      session$onFlushed(function() {
+        session$sendCustomMessage(
+          "traceRScrollTable",
+          list(id = session$ns("table"), action = action)
+        )
+      }, once = TRUE)
+    }
 
     output$table <- DT::renderDT({
+      column_names()
+      data <- isolate(current_table()$data)
       DT::datatable(
-        current_table()$data,
+        data,
+        class = "display nowrap",
         rownames = FALSE,
         filter = "top",
         selection = "single",
         editable = list(target = "cell"),
-        options = list(scrollX = TRUE, pageLength = 10)
+        options = list(
+          paging = FALSE,
+          scrollX = TRUE,
+          scrollY = "400px",
+          scrollCollapse = FALSE,
+          lengthChange = FALSE
+        )
       )
-    }, server = FALSE)
+    })
+
+    observeEvent(current_table(), {
+      data <- current_table()$data
+      if (!identical(names(data), column_names())) {
+        column_names(names(data))
+        return()
+      }
+
+      DT::replaceData(
+        proxy,
+        data,
+        rownames = FALSE,
+        resetPaging = FALSE,
+        clearSelection = "none"
+      )
+    }, ignoreInit = TRUE)
 
     output$optional_column_selector <- renderUI({
       optional_columns <- setdiff(
@@ -99,6 +152,7 @@ mod_table_server <- function(id, current_table) {
         stringsAsFactors = FALSE
       )
       current_table(new_tracer_table(rbind(data, blank_row)))
+      request_scroll("bottom")
     })
 
     observeEvent(input$delete_row, {
@@ -137,6 +191,6 @@ mod_table_server <- function(id, current_table) {
       feedback(NULL)
     })
 
-    invisible(NULL)
+    list(scroll_to_top = function() request_scroll("top"))
   })
 }

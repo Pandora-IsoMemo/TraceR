@@ -28,12 +28,16 @@ shinyServer(function(input, output, session) {
     root_inputs = input
   )
 
+  table_module <- mod_table_server("table", current_table = current_table)
+
   observeEvent(sidebar$generate_example(), {
     current_table(createExampleTracerTable())
+    table_module$scroll_to_top()
   }, ignoreInit = TRUE)
 
   observeEvent(sidebar$empty_network(), {
     current_table(new_tracer_table())
+    table_module$scroll_to_top()
   }, ignoreInit = TRUE)
 
   mod_network_server(
@@ -41,8 +45,6 @@ shinyServer(function(input, output, session) {
     private_key = private_key,
     current_table = current_table
   )
-  mod_table_server("table", current_table = current_table)
-
   updateInput(
     input,
     output,
@@ -83,6 +85,7 @@ shinyServer(function(input, output, session) {
     }
 
     current_table(restored_table)
+  table_module$scroll_to_top()
     session_inputs <- session_bundle[["inputs"]]
     inputs_to_restore(if (is.null(session_inputs)) list() else session_inputs)
   })

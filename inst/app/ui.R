@@ -19,11 +19,11 @@ tagList(
           tabsetPanel(
             id = "network_tabs",
             tabPanel(
-              title = "Table",
+              title = "Network Table",
               mod_table_ui("table")
             ),
             tabPanel(
-              title = "Network",
+              title = "Network Graph",
               mod_network_ui("network")
             )
           )

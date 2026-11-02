@@ -14,6 +14,8 @@ Editable table UI
 }
 \description{
 Displays the eleven-column \code{tracer_table} with editable cells, row controls,
-optional-column renaming, and validation feedback. Required column names are
-fixed; optional names are stored only in the data frame.
+optional-column renaming, and validation feedback. All rows share a fixed-
+height scrolling viewport without pagination. New tables start at the top,
+while adding a row scrolls to the bottom. Required column names are fixed;
+optional names are stored only in the data frame.
 }
