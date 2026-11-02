@@ -25,7 +25,7 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_true(is.list(session$returned))
       expect_named(session$returned, c(
         "generate_example", "empty_network", "save_table", "reset_table",
-        "table_import", "uploaded_session"
+        "table_import", "table_import_request_id", "uploaded_session"
       ))
       session$setInputs(generate_example = 1)
       expect_equal(session$returned$generate_example(), 1)
@@ -35,6 +35,12 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_equal(session$returned$save_table(), 1)
       session$setInputs(reset_table = 1)
       expect_equal(session$returned$reset_table(), 1)
+      session$setInputs(`table_import-accept` = 1)
+      session$flushReact()
+      expect_equal(session$returned$table_import_request_id(), 1L)
+      session$setInputs(`table_import-accept` = 2)
+      session$flushReact()
+      expect_equal(session$returned$table_import_request_id(), 2L)
       session$flushReact()
       expect_match(output$table_download_controls$html, "Download Network Table", fixed = TRUE)
       expect_false(grepl("Download Signed Network Table", output$table_download_controls$html, fixed = TRUE))

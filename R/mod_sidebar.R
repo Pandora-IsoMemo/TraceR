@@ -51,7 +51,8 @@ mod_sidebar_ui <- function(id) {
 #' @param root_inputs Root Shiny input object for session persistence
 #' @param unsaved_changes Reactive logical indicating whether the table is dirty
 #' @param private_key Optional RSA private key for signed table downloads
-#' @return A list of sidebar actions and imported session data
+#' @return A list of sidebar actions, imported data, and the monotonically
+#'   increasing `table_import_request_id` used to distinguish repeated imports.
 #' @export
 mod_sidebar_server <- function(
   id,
@@ -134,7 +135,7 @@ mod_sidebar_server <- function(
       content = function(file) table_download_content(file, signed = TRUE)
     )
 
-    table_import <- DataTools::importServer(
+    imported_table_json <- DataTools::importServer(
       "table_import",
       title = "Import Network Table",
       importType = "list",
@@ -142,6 +143,19 @@ mod_sidebar_server <- function(
       ckanFileTypes = "json",
       options = DataTools::importOptions(rPackageName = config()[["rPackageName"]])
     )
+    table_import_request <- reactiveVal(0L)
+    observeEvent(input[["table_import-accept"]], {
+      session$onFlushed(function() {
+        table_import_request(isolate(table_import_request()) + 1L)
+      }, once = TRUE)
+    }, ignoreInit = TRUE)
+    table_import <- reactive({
+      request_id <- table_import_request()
+      req(request_id > 0L)
+      imported <- imported_table_json()
+      req(length(imported) > 0L)
+      list(request_id = request_id, data = imported)
+    })
 
     uploaded_session <- DataTools::importServer(
       "session_import",
@@ -159,6 +173,7 @@ mod_sidebar_server <- function(
       save_table = reactive(input$save_table),
       reset_table = reactive(input$reset_table),
       table_import = table_import,
+      table_import_request_id = reactive(table_import_request()),
       uploaded_session = uploaded_session
     )
   })

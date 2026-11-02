@@ -157,7 +157,8 @@ shinyServer(function(input, output, session) {
   }, ignoreInit = TRUE)
 
   observeEvent(sidebar$table_import(), {
-    uploaded <- sidebar$table_import()
+    import_request <- sidebar$table_import()
+    uploaded <- import_request$data
     req(length(uploaded) > 0L)
     imported <- uploaded[[1L]]
 

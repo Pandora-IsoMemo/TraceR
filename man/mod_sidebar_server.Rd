@@ -24,7 +24,8 @@ mod_sidebar_server(
 \item{private_key}{Optional RSA private key for signed table downloads}
 }
 \value{
-A list of sidebar actions and imported session data
+A list of sidebar actions, imported data, and the monotonically
+increasing \code{table_import_request_id} used to distinguish repeated imports.
 }
 \description{
 The sidebar does not own network data. It returns table and session actions
