@@ -109,7 +109,7 @@ mod_table_server <- function(id, current_table) {
 
     output$optional_column_selector <- renderUI({
       optional_columns <- setdiff(
-        names(current_table()$data),
+        column_names(),
         c("ID", "Label", "Type", "From", "To", "Unique identifier")
       )
       selectInput(
