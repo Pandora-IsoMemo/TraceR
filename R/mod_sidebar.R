@@ -15,27 +15,24 @@ mod_sidebar_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    actionButton(ns("generate_example"), "Example Network"),
+    tags$h3("Network Table"),
+    tags$br(),
+    actionButton(ns("generate_example"), "Load Example"),
     tags$br(), tags$br(),
-    actionButton(ns("empty_network"), "Empty Network"),
+    actionButton(ns("empty_network"), "Load Empty"),
     tags$br(), tags$br(),
     actionButton(ns("save_table"), "Save"),
     actionButton(ns("reset_table"), "Reset"),
     uiOutput(ns("unsaved_status")),
+    tags$br(),
     uiOutput(ns("table_download_controls")),
-    DataTools::importUI(ns("table_import"), label = "Import Network Table"),
-    checkboxInput(
-      inputId = ns("download_inputs"),
-      label = "Download user inputs and network",
-      value = FALSE
-    ),
-    conditionalPanel(
-      condition = sprintf("input['%s'] == true", ns("download_inputs")),
-      DataTools::downloadModelUI(
-        id = ns("session_download"),
-        label = "Download Session"
-      ),
-      tags$hr()
+    DataTools::importUI(ns("table_import"), label = "Import"),
+    tags$hr(),
+    tags$h3("Session"),
+    tags$br(),
+    DataTools::downloadModelUI(
+      id = ns("session_download"),
+      label = "Download Session"
     ),
     DataTools::importUI(ns("session_import"), label = "Import Session")
   )
@@ -87,13 +84,13 @@ mod_sidebar_server <- function(
 
     output$table_download_controls <- renderUI({
       if (is.null(private_key)) {
-        return(downloadButton(session$ns("download_table"), "Download Network Table"))
+        return(downloadButton(session$ns("download_table"), "Download"))
       }
 
       tagList(
-        downloadButton(session$ns("download_table"), "Download Network Table"),
-        tags$br(),
-        downloadButton(session$ns("download_signed_table"), "Download Signed Network Table"),
+        downloadButton(session$ns("download_table"), "Download"),
+        tags$br(), tags$br(),
+        downloadButton(session$ns("download_signed_table"), "Download Signed"),
         tags$br(),
         tags$br()
       )
