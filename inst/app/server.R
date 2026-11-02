@@ -69,7 +69,7 @@ shinyServer(function(input, output, session) {
     }
 
     restored_table <- tryCatch({
-      if (!inherits(imported_table, "tracer_table")) {
+      if (!inherits(imported_table, "tracer_table") || !is.data.frame(imported_table$data)) {
         stop("The session's tracer_table object is malformed.")
       }
       new_tracer_table(imported_table$data)
