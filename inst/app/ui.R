@@ -13,11 +13,15 @@ tagList(
       sidebarLayout(
         sidebarPanel(
           width = 2,
-          mod_network_sidebar_ui("network")
+          mod_sidebar_ui("sidebar")
         ),
         mainPanel(
           tabsetPanel(
             id = "network_tabs",
+            tabPanel(
+              title = "Table",
+              mod_table_ui("table")
+            ),
             tabPanel(
               title = "Network",
               mod_network_ui("network")

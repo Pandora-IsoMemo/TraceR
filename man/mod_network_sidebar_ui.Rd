@@ -10,8 +10,11 @@ mod_network_sidebar_ui(id)
 \item{id}{Module ID}
 }
 \value{
-Network controls UI
+Shared sidebar controls UI
 }
 \description{
-Network sidebar UI
+Deprecated compatibility wrapper for \code{\link[=mod_sidebar_ui]{mod_sidebar_ui()}}.
+}
+\seealso{
+\code{\link[=mod_sidebar_ui]{mod_sidebar_ui()}}
 }

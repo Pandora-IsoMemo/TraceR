@@ -224,3 +224,31 @@ test_that("unknown references remain warnings alongside other content errors", {
   expect_true(any(result$errors$field == "From" & result$errors$row == 2L))
   expect_equal(nrow(result$warnings), 2L)
 })
+
+test_that("example tracer table is deterministic, valid, and converts", {
+  table <- createExampleTracerTable()
+  data <- table$data
+
+  expect_identical(table, createExampleTracerTable())
+  expect_equal(names(data), c(
+    "ID", "Label", "Type", "From", "To", "Unique identifier", "Author",
+    "Status", "Description", "Optional 4", "Optional 5"
+  ))
+  expect_equal(sum(data$Type == "node"), 5L)
+  expect_equal(sum(data$Type == "capsule"), 1L)
+  expect_equal(sum(data$Type == "edge"), 5L)
+  expect_equal(anyDuplicated(data$ID), 0L)
+  expect_true(all(data[["Unique identifier"]] == ""))
+  expect_equal(nrow(validate_tracer_table(table)$errors), 0L)
+  expect_equal(nrow(validate_tracer_table(table)$warnings), 0L)
+
+  element_ids <- data$ID[data$Type %in% c("node", "capsule")]
+  edges <- data[data$Type == "edge", , drop = FALSE]
+  expect_true(all(edges$From %in% element_ids))
+  expect_true(all(edges$To %in% element_ids))
+
+  graph_tables <- as.graph_tables(table)
+  expect_equal(nrow(graph_tables$nodes), 6L)
+  expect_equal(nrow(graph_tables$edges), 5L)
+  expect_equal(sum(graph_tables$nodes$tracer_type == "capsule"), 1L)
+})

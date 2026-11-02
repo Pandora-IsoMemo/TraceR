@@ -44,33 +44,42 @@ initialize_graph_zooming <- function(outputId = "flowchart") {
   }
 }
 
-// Function to observe changes in the graph container
-function setupGraphObserver() {
-  var targetNode = document.querySelector(graphSelector);
-  if (!targetNode) {
-    console.error("Graph container not found.");
-    return;
-  }
-
-  // Create a mutation observer
+function observeGraphContainer(targetNode) {
   var observer = new MutationObserver(function (mutationsList) {
     for (var mutation of mutationsList) {
       if (mutation.type === "childList") {
-        // Re-run initializePanzoom when new elements are added
         initializePanzoom();
       }
     }
   });
 
-  // Start observing the container for child changes
   observer.observe(targetNode, {
     childList: true,
-    subtree: false // Only observe direct children
+    subtree: true
   });
 }
 
-// Initial call to setup observer and panzoom
+function setupGraphObserver() {
+  var targetNode = document.querySelector(graphSelector);
+  if (targetNode) {
+    observeGraphContainer(targetNode);
+    initializePanzoom();
+    return;
+  }
+
+  var bodyObserver = new MutationObserver(function () {
+    var targetNode = document.querySelector(graphSelector);
+    if (!targetNode) return;
+    bodyObserver.disconnect();
+    observeGraphContainer(targetNode);
+    initializePanzoom();
+  });
+  bodyObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
 setupGraphObserver();
-initializePanzoom();
 '))
 }

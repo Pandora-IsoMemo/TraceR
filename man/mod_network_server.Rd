@@ -4,17 +4,24 @@
 \alias{mod_network_server}
 \title{Network module server}
 \usage{
-mod_network_server(id, private_key = NULL, public_key = NULL)
+mod_network_server(
+  id,
+  private_key = NULL,
+  public_key = NULL,
+  current_table = NULL
+)
 }
 \arguments{
 \item{id}{Module ID}
 
 \item{private_key}{Private key used to sign graph downloads}
 
-\item{public_key}{Public key used to validate imported graphs}
+\item{public_key}{Deprecated; retained for compatibility}
+
+\item{current_table}{Reactive value containing the shared \code{tracer_table}}
 }
 \value{
-Reactive graph state
+Reactive DiagrammeR graph derived from \code{current_table}
 }
 \description{
 Network module server
