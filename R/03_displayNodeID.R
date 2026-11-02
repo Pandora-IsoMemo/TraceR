@@ -11,8 +11,9 @@ displayNodeId <- function(input, output, outputId, graph = NULL) {
   output[[outputId]] <- renderText({
     req(input$flowchart_click)
     clicked_id <- input$flowchart_click$id[[1]]
-    if (!is.null(graph) && !is.null(graph())) {
-      nodes <- DiagrammeR::get_node_df(graph())
+    current_graph <- if (is.null(graph)) NULL else shiny::isolate(graph())
+    if (!is.null(current_graph)) {
+      nodes <- DiagrammeR::get_node_df(current_graph)
       node_index <- match(as.character(clicked_id), as.character(nodes$id))
       if (!is.na(node_index) && "tracer_id" %in% names(nodes)) {
         clicked_id <- nodes$tracer_id[[node_index]]
