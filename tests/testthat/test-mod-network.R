@@ -112,8 +112,8 @@ test_that("Network UI uses its module namespace", {
   html <- htmltools::renderTags(ui)$html
 
   expect_match(html, 'id="sidebar-generate_example"', fixed = TRUE)
-  expect_match(html, 'id="sidebar-download_inputs"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-table_import-openPopup"', fixed = TRUE)
+  expect_false(grepl("sidebar-download_inputs", html, fixed = TRUE))
   expect_false(grepl("Download JSON", html, fixed = TRUE))
   expect_false(grepl("Download Signed JSON", html, fixed = TRUE))
-  expect_match(html, 'input[&#39;sidebar-download_inputs&#39;] == true', fixed = TRUE)
 })

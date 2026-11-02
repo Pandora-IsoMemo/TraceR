@@ -1,16 +1,19 @@
-test_that("shared sidebar exposes example and session controls only", {
+test_that("shared sidebar exposes current table and session controls", {
   html <- htmltools::renderTags(mod_sidebar_ui("sidebar"))$html
 
+  expect_match(html, "Network Table", fixed = TRUE)
   expect_match(html, 'id="sidebar-generate_example"', fixed = TRUE)
-  expect_match(html, "Example Network", fixed = TRUE)
+  expect_match(html, "Load Example", fixed = TRUE)
   expect_match(html, 'id="sidebar-empty_network"', fixed = TRUE)
-  expect_match(html, "Empty Network", fixed = TRUE)
+  expect_match(html, "Load Empty", fixed = TRUE)
   expect_match(html, "Save", fixed = TRUE)
   expect_match(html, "Reset", fixed = TRUE)
-  expect_match(html, "Import Network Table", fixed = TRUE)
+  expect_match(html, 'id="sidebar-table_import-openPopup"', fixed = TRUE)
+  expect_match(html, "Session", fixed = TRUE)
   expect_match(html, "Download Session", fixed = TRUE)
   expect_match(html, "Import Session", fixed = TRUE)
   expect_false(grepl("Import JSON", html, fixed = TRUE))
+  expect_false(grepl("sidebar-download_inputs", html, fixed = TRUE))
   expect_false(grepl("test_input", html, fixed = TRUE))
 })
 
@@ -42,8 +45,8 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       session$flushReact()
       expect_equal(session$returned$table_import_request_id(), 2L)
       session$flushReact()
-      expect_match(output$table_download_controls$html, "Download Network Table", fixed = TRUE)
-      expect_false(grepl("Download Signed Network Table", output$table_download_controls$html, fixed = TRUE))
+      expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
+      expect_false(grepl("Download Signed", output$table_download_controls$html, fixed = TRUE))
       expect_match(output$unsaved_status$html, "Saved", fixed = TRUE)
     }
   )
@@ -59,8 +62,8 @@ test_that("signed table download is shown only when a private key is available",
     ),
     {
       session$flushReact()
-      expect_match(output$table_download_controls$html, "Download Network Table", fixed = TRUE)
-      expect_match(output$table_download_controls$html, "Download Signed Network Table", fixed = TRUE)
+      expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
+      expect_match(output$table_download_controls$html, "Download Signed", fixed = TRUE)
     }
   )
 })
