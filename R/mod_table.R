@@ -3,8 +3,9 @@
 #' Displays the eleven-column `tracer_table` with editable cells, row controls,
 #' optional-column renaming, and validation feedback. All rows share a fixed-
 #' height scrolling viewport without pagination. New tables start at the top,
-#' while adding a row scrolls to the bottom. Required column names are fixed;
-#' optional names are stored only in the data frame.
+#' while adding a row clears sorting and filters, then scrolls to the appended
+#' row. Required column names are fixed; optional names are stored only in the
+#' data frame.
 #'
 #' @param id Module ID
 #' @return Editable table UI
@@ -42,6 +43,23 @@ mod_table_ui <- function(id) {
           setTimeout(scrollTable, delay);
         });
       });
+
+      Shiny.addCustomMessageHandler('traceRAppendTableRow', function(message) {
+        var output = document.getElementById(message.id);
+        var body = output && output.querySelector('.dataTables_scrollBody');
+        var tableElement = body && body.querySelector('table');
+        if (!tableElement || !$.fn.DataTable.isDataTable(tableElement)) return;
+
+        var table = $(tableElement).DataTable();
+        var scrollAfterAppend = function() {
+          if (table.rows().count() < message.expectedRows) return;
+          $(tableElement).off('draw.dt.traceRAppend', scrollAfterAppend);
+          body.scrollTop = body.scrollHeight;
+        };
+
+        $(tableElement).on('draw.dt.traceRAppend', scrollAfterAppend);
+        table.order([]);
+      });
     "))
   )
 }
@@ -69,6 +87,14 @@ mod_table_server <- function(id, current_table) {
           list(id = session$ns("table"), action = action)
         )
       }, once = TRUE)
+    }
+
+    prepare_append <- function(expected_rows) {
+      session$sendCustomMessage(
+        "traceRAppendTableRow",
+        list(id = session$ns("table"), expectedRows = expected_rows)
+      )
+      DT::clearSearch(proxy)
     }
 
     output$table <- DT::renderDT({
@@ -151,8 +177,9 @@ mod_table_server <- function(id, current_table) {
         check.names = FALSE,
         stringsAsFactors = FALSE
       )
-      current_table(new_tracer_table(rbind(data, blank_row)))
-      request_scroll("bottom")
+      new_data <- rbind(data, blank_row)
+      prepare_append(nrow(new_data))
+      current_table(new_tracer_table(new_data))
     })
 
     observeEvent(input$delete_row, {
