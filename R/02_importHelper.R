@@ -60,11 +60,11 @@ updateInput <- function(input, output, session, uploaded_inputs) {
     logDebug("updateInput: Send uploaded_inputs")
 
     ## update inputs ----
-    inputIDs <- names(uploaded_inputs())
-    inputIDs <- inputIDs[inputIDs %in% names(input)]
+    input_ids <- names(uploaded_inputs())
+    input_ids <- input_ids[input_ids %in% names(input)]
 
-    for (i in 1:length(inputIDs)) {
-      session$sendInputMessage(inputIDs[i],  list(value = uploaded_inputs()[[inputIDs[i]]]) )
+    for (input_id in input_ids) {
+      session$sendInputMessage(input_id, list(value = uploaded_inputs()[[input_id]]))
     }
   }) %>% bindEvent(uploaded_inputs())
 }

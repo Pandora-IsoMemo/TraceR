@@ -7,62 +7,82 @@ mod_network_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    DiagrammeR::grVizOutput(ns("flowchart"), width = "800px", height = "800px"),
-    textOutput(ns("clickMessage"))
+    tags$br(),
+    uiOutput(ns("graph_status")),
+    uiOutput(ns("flowchart_container")),
+    textOutput(ns("clickMessage")),
+    tags$hr(),
+    uiOutput(ns("conditional_download_buttons"))
   )
 }
 
 #' Network sidebar UI
 #'
+#' Deprecated compatibility wrapper for [mod_sidebar_ui()].
+#'
 #' @param id Module ID
-#' @return Network controls UI
+#' @return Shared sidebar controls UI
+#' @seealso [mod_sidebar_ui()]
 #' @export
 mod_network_sidebar_ui <- function(id) {
-  ns <- NS(id)
-
-  tagList(
-    actionButton(ns("generate_flowchart"), "Generate Flowchart"),
-    tags$br(),
-    textInput(ns("test_input"), "Test Input", placeholder = "Please add some text ..."),
-    tags$br(),
-    textInput(ns("test_input"), "Test Input", placeholder = "Please add some text ..."),
-    tags$br(),
-    uiOutput(ns("conditional_download_buttons")),
-    checkboxInput(
-      inputId = ns("download_inputs"),
-      label = "Download user inputs and graph",
-      value = FALSE
-    ),
-    conditionalPanel(
-      condition = sprintf("input['%s'] == true", ns("download_inputs")),
-      DataTools::downloadModelUI(
-        id = ns("session_download"),
-        label = "Download Session"
-      ),
-      tags$hr()
-    ),
-    importModuleUI(ns("import")),
-    tags$br(),
-    tags$br()
-  )
+  mod_sidebar_ui(id)
 }
 
 #' Network module server
 #'
 #' @param id Module ID
 #' @param private_key Private key used to sign graph downloads
-#' @param public_key Public key used to validate imported graphs
-#' @return Reactive graph state
+#' @param public_key Deprecated; retained for compatibility
+#' @param current_table Reactive value containing the shared `tracer_table`
+#' @return Reactive DiagrammeR graph derived from `current_table`
 #' @export
-mod_network_server <- function(id, private_key = NULL, public_key = NULL) {
+mod_network_server <- function(id, private_key = NULL, public_key = NULL, current_table = NULL) {
   moduleServer(id, function(input, output, session) {
-    graph <- reactiveVal()
-    upload_description <- reactiveVal()
+    if (is.null(current_table)) {
+      current_table <- reactive(new_tracer_table())
+    }
 
-    observeEvent(
-      input$generate_flowchart,
-      graph(createExampleGraph())
-    )
+    graph <- reactive({
+      table <- current_table()
+      validation <- validate_tracer_table(table)
+      if (nrow(validation$errors) > 0L || nrow(validation$warnings) > 0L) {
+        return(NULL)
+      }
+
+      graph_tables <- as.graph_tables(table)
+      result <- DiagrammeR::create_graph(directed = TRUE) |>
+        DiagrammeR::add_global_graph_attrs(attr = "layout", value = "dot", attr_type = "graph") |>
+        DiagrammeR::add_global_graph_attrs(attr = "rankdir", value = "TB", attr_type = "graph") |>
+        DiagrammeR::add_node_df(graph_tables$nodes)
+      if (nrow(graph_tables$edges) > 0L) {
+        result <- DiagrammeR::add_edge_df(result, graph_tables$edges)
+      }
+      result
+    })
+
+    output$graph_status <- renderUI({
+      validation <- validate_tracer_table(current_table())
+      issues <- c(validation$errors$message, validation$warnings$message)
+      if (length(issues) == 0L) return(NULL)
+
+      tags$div(
+        class = if (nrow(validation$errors) > 0L) "alert alert-danger" else "alert alert-warning",
+        role = "alert",
+        tags$strong("Network not rendered because the table is invalid"),
+        tags$ul(lapply(issues, tags$li))
+      )
+    })
+
+    output$flowchart_container <- renderUI({
+      if (is.null(graph())) {
+        return(tags$div(
+          class = "network-placeholder",
+          "Graph unavailable until the table has no validation errors or warnings."
+        ))
+      }
+
+      DiagrammeR::grVizOutput(session$ns("flowchart"), width = "800px", height = "800px")
+    })
 
     output$flowchart <- DiagrammeR::renderGrViz({
       withProgress(renderFlowchart(graph),
@@ -72,14 +92,14 @@ mod_network_server <- function(id, private_key = NULL, public_key = NULL) {
     })
 
     output$conditional_download_buttons <- renderUI({
+      if (is.null(graph())) return(NULL)
+
       if (
         !is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA)) &&
           !is.null(private_key)
       ) {
         tagList(
           downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON"),
-          tags$br(),
-          tags$br(),
           downloadModuleUI(session$ns("download_signed"), label = "Download Signed JSON")
         )
       } else {
@@ -99,24 +119,8 @@ mod_network_server <- function(id, private_key = NULL, public_key = NULL) {
       private_key = private_key,
       signed = TRUE
     )
-
-    DataTools::downloadModelServer("session_download",
-      dat = reactive(asGraphList(graph())),
-      inputs = input,
-      model = reactive(NULL),
-      rPackageName = config()[["rPackageName"]],
-      defaultFileName = config()[["defaultFileName"]],
-      fileExtension = config()[["fileExtension"]],
-      modelNotes = upload_description,
-      triggerUpdate = reactive(TRUE),
-      onlySettings = TRUE
-    )
-
-    uploaded_data <- importModuleServer("import", public_key)
-    updateGraph(graph = graph, uploadedGraph = reactive(uploaded_data$graph))
-    updateInput(input, output, session, uploaded_inputs = reactive(uploaded_data$input))
-    displayNodeId(input, output, outputId = "clickMessage")
-    initialize_graph_zooming(session$ns("flowchart"))
+    displayNodeId(input, output, outputId = "clickMessage", graph = graph)
+    initialize_graph_zooming(session$ns("flowchart_container"))
 
     graph
   })

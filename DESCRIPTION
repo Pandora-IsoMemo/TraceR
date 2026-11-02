@@ -1,7 +1,7 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 26.10.2
-Date: 2026-10-30
+Version: 26.11.0
+Date: 2026-11-1
 Authors@R: c(
     person("Ricardo", "Fernandes", email = "ldv1452@gmail.com", role = c("aut")),
     person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut")),
@@ -21,6 +21,7 @@ Imports:
     DataTools (>= 26.08.2),
     DiagrammeR,
     DiagrammeRsvg,
+    DT,
     futile.logger,
     jsonlite,
     magrittr,

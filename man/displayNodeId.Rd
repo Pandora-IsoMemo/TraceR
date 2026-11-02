@@ -4,14 +4,17 @@
 \alias{displayNodeId}
 \title{Displays the node Id that was clicked}
 \usage{
-displayNodeId(input, output, outputId)
+displayNodeId(input, output, outputId, graph = NULL)
 }
 \arguments{
 \item{input}{server input object}
 
 \item{output}{server output object}
 
-\item{outputId}{outputId of element for which the clicked Id is shown}
+\item{outputId}{outputId of element for which the clicked ID is shown}
+
+\item{graph}{Optional reactive DiagrammeR graph used to map graph IDs to
+original TraceR IDs}
 }
 \description{
 Displays the node Id that was clicked
