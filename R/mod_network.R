@@ -24,6 +24,11 @@ mod_network_ui <- function(id) {
 #' @seealso [mod_sidebar_ui()]
 #' @export
 mod_network_sidebar_ui <- function(id) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::mod_network_sidebar_ui()",
+    details = "Use mod_sidebar_ui() instead."
+  )
   mod_sidebar_ui(id)
 }
 
@@ -36,6 +41,18 @@ mod_network_sidebar_ui <- function(id) {
 #' @return Reactive DiagrammeR graph derived from `current_table`
 #' @export
 mod_network_server <- function(id, private_key = NULL, public_key = NULL, current_table = NULL) {
+  if (!is.null(private_key) || !is.null(public_key)) {
+    deprecate_warn(
+      "26.11.1",
+      if (!is.null(private_key)) {
+        "TraceR::mod_network_server(private_key = )"
+      } else {
+        "TraceR::mod_network_server(public_key = )"
+      },
+      details = "The private_key and public_key arguments are legacy graph-JSON features and are no longer used."
+    )
+  }
+
   moduleServer(id, function(input, output, session) {
     if (is.null(current_table)) {
       current_table <- reactive(new_tracer_table())

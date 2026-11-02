@@ -5,6 +5,7 @@
 ## New Features
 - Added versioned network-table JSON import/export with RSA-SHA256 signatures and session-local Save/Reset (#41).
 - Legacy graph JSON download controls are removed from the app; exported graph helpers remain for compatibility.
+- Added lifecycle deprecation warnings for legacy graph JSON import/export, graph-list conversion, and random graph example APIs.
 
 # TraceR 26.11.0
 

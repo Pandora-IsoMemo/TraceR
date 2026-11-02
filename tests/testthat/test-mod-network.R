@@ -35,12 +35,73 @@ test_that("Network module derives its graph from the shared tracer_table", {
 })
 
 test_that("graph list imports preserve node and edge data", {
-  graph <- createExampleGraph()
-
-  imported_graph <- createGraphFromUpload(asGraphList(graph))
+  graph <- suppressWarnings(createExampleGraph())
+  graph_list <- suppressWarnings(asGraphList(graph))
+  imported_graph <- suppressWarnings(createGraphFromUpload(graph_list))
 
   expect_equal(imported_graph$nodes_df, graph$nodes_df)
   expect_equal(imported_graph$edges_df, graph$edges_df)
+})
+
+test_that("legacy graph helpers signal deprecation", {
+  graph <- suppressWarnings(createExampleGraph())
+  graph_list <- suppressWarnings(asGraphList(graph))
+
+  expect_warning(createExampleGraph(), class = "lifecycle_warning_deprecated")
+  expect_warning(asGraphList(graph), class = "lifecycle_warning_deprecated")
+  expect_warning(createGraphFromUpload(graph_list), class = "lifecycle_warning_deprecated")
+  expect_warning(downloadModuleUI("legacy", "Download"), class = "lifecycle_warning_deprecated")
+  expect_warning(importModuleUI("legacy"), class = "lifecycle_warning_deprecated")
+  expect_warning(mod_network_sidebar_ui("legacy"), class = "lifecycle_warning_deprecated")
+
+  expect_warning(
+    shiny::testServer(
+      function(input, output, session) check_signature_validity(list(), NULL),
+      {}
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+
+  expect_warning(
+    shiny::testServer(
+      downloadModuleServer,
+      args = list(graph = shiny::reactiveVal(graph), private_key = NULL, signed = FALSE),
+      {}
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_warning(
+    shiny::testServer(importModuleServer, args = list(public_key = NULL), {}),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_warning(
+    shiny::testServer(
+      function(input, output, session) createDownloadModuleUI(output, private_key = NULL),
+      {}
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_warning(
+    shiny::testServer(
+      function(input, output, session) {
+        updateGraph(shiny::reactiveVal(NULL), shiny::reactiveVal(NULL))
+      },
+      {}
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_warning(
+    shiny::testServer(
+      mod_network_server,
+      args = list(
+        private_key = structure(list(), class = "test_private_key"),
+        public_key = structure(list(), class = "test_public_key"),
+        current_table = shiny::reactiveVal(createExampleTracerTable())
+      ),
+      {}
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
 })
 
 test_that("Network UI uses its module namespace", {

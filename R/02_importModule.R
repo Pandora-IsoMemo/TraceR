@@ -5,6 +5,11 @@
 #'
 #' @export
 importModuleUI <- function(id) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::importModuleUI()",
+    details = "Use mod_sidebar_ui() for session import and the table importer for network JSON."
+  )
   ns <- NS(id)
 
   tagList(
@@ -22,6 +27,11 @@ importModuleUI <- function(id) {
 #'
 #' @export
 importModuleServer <- function(id, public_key) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::importModuleServer()",
+    details = "This module imports legacy graph JSON; use the table JSON importer instead."
+  )
   moduleServer(
     id,
     function(input, output, session) {
@@ -44,7 +54,7 @@ importModuleServer <- function(id, public_key) {
         req(!is.null(uploaded_file()[[1]]))
         data$graph <- uploaded_file()[[1]]
 
-        check_signature_validity(graph_list = data$graph, public_key)
+        .check_signature_validity(graph_list = data$graph, public_key)
       }) %>%
         bindEvent(uploaded_file())
 
@@ -67,7 +77,7 @@ importModuleServer <- function(id, public_key) {
         req(!is.null(uploaded_session()[[1]][["data"]]))
         data$graph <- uploaded_session()[[1]][["data"]]
 
-        check_signature_validity(graph_list = data$graph, public_key)
+        .check_signature_validity(graph_list = data$graph, public_key)
 
         # Update input if data is available
         req(!is.null(uploaded_session()[[1]][["inputs"]]))
@@ -87,6 +97,15 @@ importModuleServer <- function(id, public_key) {
 #'
 #' @export
 check_signature_validity <- function(graph_list, public_key) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::check_signature_validity()",
+    details = "This verifier covers legacy graph JSON; use tracer_table_from_signed_json() for table JSON."
+  )
+  .check_signature_validity(graph_list, public_key)
+}
+
+.check_signature_validity <- function(graph_list, public_key) {
   if (
     is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA))
     && is.null(public_key)

@@ -6,6 +6,7 @@
 #' @importFrom magrittr "%>%"
 #' @importFrom openssl signature_create signature_verify base64_encode base64_decode
 #' @importFrom jsonlite write_json fromJSON toJSON
+#' @importFrom lifecycle deprecate_warn
 #' @importFrom shinyalert shinyalert
 #' @importFrom yaml read_yaml
 

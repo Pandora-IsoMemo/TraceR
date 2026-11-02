@@ -24,6 +24,7 @@ Imports:
     DT,
     futile.logger,
     jsonlite,
+    lifecycle,
     magrittr,
     openssl,
     shiny,

@@ -2,6 +2,15 @@
 #'
 #' @param graph_list list, containing all elements required for the graph
 createGraphFromUpload <- function(graph_list) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::createGraphFromUpload()",
+    details = "Graph-to-table migration is not supported; import tracer_table JSON instead."
+  )
+  .create_graph_from_upload(graph_list)
+}
+
+.create_graph_from_upload <- function(graph_list) {
   tryCatch(
     {
       graph <-
@@ -39,10 +48,15 @@ createGraphFromUpload <- function(graph_list) {
 #'
 #' @export
 updateGraph <- function(graph, uploadedGraph) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::updateGraph()",
+    details = "The Network graph is now derived from the shared tracer_table."
+  )
   observe({
     req(uploadedGraph())
     logDebug("Update graph")
-    new_graph <- createGraphFromUpload(graph_list = uploadedGraph())
+    new_graph <- .create_graph_from_upload(graph_list = uploadedGraph())
     graph(new_graph)
   })
 }
