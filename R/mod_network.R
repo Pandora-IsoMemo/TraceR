@@ -11,8 +11,7 @@ mod_network_ui <- function(id) {
     uiOutput(ns("graph_status")),
     uiOutput(ns("flowchart_container")),
     textOutput(ns("clickMessage")),
-    tags$hr(),
-    uiOutput(ns("conditional_download_buttons"))
+    tags$hr()
   )
 }
 
@@ -25,18 +24,35 @@ mod_network_ui <- function(id) {
 #' @seealso [mod_sidebar_ui()]
 #' @export
 mod_network_sidebar_ui <- function(id) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::mod_network_sidebar_ui()",
+    details = "Use mod_sidebar_ui() instead."
+  )
   mod_sidebar_ui(id)
 }
 
 #' Network module server
 #'
 #' @param id Module ID
-#' @param private_key Private key used to sign graph downloads
+#' @param private_key Deprecated; graph JSON downloads are provided by the sidebar
 #' @param public_key Deprecated; retained for compatibility
 #' @param current_table Reactive value containing the shared `tracer_table`
 #' @return Reactive DiagrammeR graph derived from `current_table`
 #' @export
 mod_network_server <- function(id, private_key = NULL, public_key = NULL, current_table = NULL) {
+  if (!is.null(private_key) || !is.null(public_key)) {
+    deprecate_warn(
+      "26.11.1",
+      if (!is.null(private_key)) {
+        "TraceR::mod_network_server(private_key = )"
+      } else {
+        "TraceR::mod_network_server(public_key = )"
+      },
+      details = "The private_key and public_key arguments are legacy graph-JSON features and are no longer used."
+    )
+  }
+
   moduleServer(id, function(input, output, session) {
     if (is.null(current_table)) {
       current_table <- reactive(new_tracer_table())
@@ -91,34 +107,6 @@ mod_network_server <- function(id, private_key = NULL, public_key = NULL, curren
       )
     })
 
-    output$conditional_download_buttons <- renderUI({
-      if (is.null(graph())) return(NULL)
-
-      if (
-        !is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA)) &&
-          !is.null(private_key)
-      ) {
-        tagList(
-          downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON"),
-          downloadModuleUI(session$ns("download_signed"), label = "Download Signed JSON")
-        )
-      } else {
-        downloadModuleUI(session$ns("download_unsigned"), label = "Download JSON")
-      }
-    })
-
-    downloadModuleServer(
-      "download_unsigned",
-      graph = graph,
-      private_key = private_key,
-      signed = FALSE
-    )
-    downloadModuleServer(
-      "download_signed",
-      graph = graph,
-      private_key = private_key,
-      signed = TRUE
-    )
     displayNodeId(input, output, outputId = "clickMessage", graph = graph)
     initialize_graph_zooming(session$ns("flowchart_container"))
 

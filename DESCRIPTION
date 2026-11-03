@@ -1,6 +1,6 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 26.11.0
+Version: 26.11.1
 Date: 2026-11-1
 Authors@R: c(
     person("Ricardo", "Fernandes", email = "ldv1452@gmail.com", role = c("aut")),
@@ -24,6 +24,7 @@ Imports:
     DT,
     futile.logger,
     jsonlite,
+    lifecycle,
     magrittr,
     openssl,
     shiny,

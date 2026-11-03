@@ -269,3 +269,26 @@ validate_tracer_table <- function(x) {
 
   .tracer_table_content_issues(x$data)
 }
+
+#' Compare two tracer_table data values
+#'
+#' Compares ordered column names and cell values while ignoring data-frame row
+#' names. This is useful for detecting whether table content has changed.
+#'
+#' @param x,y Objects to compare.
+#' @return `TRUE` when both objects are `tracer_table` instances with the same
+#'   ordered columns and values; otherwise `FALSE`.
+#' @export
+tracer_table_data_identical <- function(x, y) {
+  if (!inherits(x, "tracer_table") || !inherits(y, "tracer_table")) {
+    return(FALSE)
+  }
+  if (!identical(names(x$data), names(y$data))) {
+    return(FALSE)
+  }
+
+  identical(
+    lapply(x$data, unname),
+    lapply(y$data, unname)
+  )
+}

@@ -4,7 +4,13 @@
 \alias{mod_sidebar_server}
 \title{Shared sidebar server}
 \usage{
-mod_sidebar_server(id, current_table, root_inputs)
+mod_sidebar_server(
+  id,
+  current_table,
+  root_inputs,
+  unsaved_changes = NULL,
+  private_key = NULL
+)
 }
 \arguments{
 \item{id}{Module ID}
@@ -12,11 +18,16 @@ mod_sidebar_server(id, current_table, root_inputs)
 \item{current_table}{Reactive value containing the shared \code{tracer_table}}
 
 \item{root_inputs}{Root Shiny input object for session persistence}
+
+\item{unsaved_changes}{Reactive logical indicating whether the table is dirty}
+
+\item{private_key}{Optional RSA private key for signed table downloads}
 }
 \value{
-A list of sidebar actions and imported session data
+A list of sidebar actions, imported data, and the monotonically
+increasing \code{table_import_request_id} used to distinguish repeated imports.
 }
 \description{
-The sidebar does not own network data. It returns example/empty-network
-actions and session-import reactives for the application server to coordinate.
+The sidebar does not own network data. It returns table and session actions
+for the application server to coordinate.
 }

@@ -3,6 +3,12 @@
 #' @return Graph object
 #' @export
 createExampleGraph <- function() {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::createExampleGraph()",
+    details = "Use createExampleTracerTable() to generate the app's deterministic example."
+  )
+
   create_graph() %>%
     add_pa_graph(
       n = 50, m = 1,

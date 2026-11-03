@@ -6,6 +6,15 @@
 #'
 #' @export
 downloadModuleUI <- function(id, label) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::downloadModuleUI()",
+    details = "Graph JSON downloads are no longer provided by the app."
+  )
+  .download_module_ui(id, label)
+}
+
+.download_module_ui <- function(id, label) {
   ns <- NS(id)
   downloadButton(ns("download"), label)
 }
@@ -18,19 +27,24 @@ downloadModuleUI <- function(id, label) {
 #'
 #' @export
 createDownloadModuleUI <- function(output, private_key) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::createDownloadModuleUI()",
+    details = "Graph JSON download controls are no longer provided by the app."
+  )
   output$conditional_download_buttons <- renderUI({
     if (
       !is.na(Sys.getenv("SHINYPROXY_USERID", unset = NA)) &&
         !is.null(private_key)
     ) {
       tagList(
-        downloadModuleUI("download_unsigned", label = "Download JSON"),
+        .download_module_ui("download_unsigned", label = "Download JSON"),
         tags$br(),
         tags$br(),
-        downloadModuleUI("download_signed", label = "Download Signed JSON")
+        .download_module_ui("download_signed", label = "Download Signed JSON")
       )
     } else {
-      downloadModuleUI("download_unsigned", label = "Download JSON")
+      .download_module_ui("download_unsigned", label = "Download JSON")
     }
   })
 }
@@ -45,6 +59,11 @@ createDownloadModuleUI <- function(output, private_key) {
 #'
 #' @export
 downloadModuleServer <- function(id, graph, private_key, signed) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::downloadModuleServer()",
+    details = "This module exports the legacy DiagrammeR graph JSON format."
+  )
   moduleServer(
     id,
     function(input, output, session) {
@@ -53,8 +72,7 @@ downloadModuleServer <- function(id, graph, private_key, signed) {
           paste("traceR-graph-", Sys.Date(), ".json", sep = "")
         },
         content = function(file) {
-          graph_list <- graph() %>%
-            asGraphList()
+          graph_list <- .as_graph_list(graph())
           if (signed) {
             # Convert to json
             json_data <- graph_list %>%
@@ -87,6 +105,15 @@ downloadModuleServer <- function(id, graph, private_key, signed) {
 #'
 #' @export
 asGraphList <- function(graph) {
+  deprecate_warn(
+    "26.11.1",
+    "TraceR::asGraphList()",
+    details = "Use tracer_table_to_json() to serialize network table data."
+  )
+  .as_graph_list(graph)
+}
+
+.as_graph_list <- function(graph) {
   sapply(graph, function(x) x)
 }
 
