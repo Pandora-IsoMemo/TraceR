@@ -149,7 +149,7 @@ mod_sidebar_server <- function(
     table_import <- reactive({
       request_id <- table_import_request()
       req(request_id > 0L)
-      imported <- imported_table_json()
+      imported <- isolate(imported_table_json())
       req(length(imported) > 0L)
       list(request_id = request_id, data = imported)
     })

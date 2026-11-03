@@ -52,6 +52,51 @@ test_that("shared sidebar server initializes with shared state and root inputs",
   )
 })
 
+test_that("table imports emit once per completed request, including identical payloads", {
+  shiny::testServer(
+    mod_sidebar_server,
+    args = list(
+      current_table = shiny::reactiveVal(new_tracer_table()),
+      root_inputs = shiny::reactiveValues()
+    ),
+    {
+      tracker <- new.env(parent = emptyenv())
+      tracker$events <- list()
+      shiny::observeEvent(session$returned$table_import(), {
+        tracker$events <- append(tracker$events, list(session$returned$table_import()))
+      })
+      session$setInputs(`table_import-accept` = 0L)
+      session$flushReact()
+
+      first_payload <- list(file = list(payload = "first"))
+      imported_table_json(first_payload)
+      session$flushReact()
+      expect_length(tracker$events, 0L)
+
+      session$setInputs(`table_import-accept` = 1L)
+      session$flushReact()
+      expect_length(tracker$events, 1L)
+      expect_identical(tracker$events[[1]], list(request_id = 1L, data = first_payload))
+
+      second_payload <- list(file = list(payload = "second"))
+      imported_table_json(second_payload)
+      session$flushReact()
+      expect_length(tracker$events, 1L)
+
+      session$setInputs(`table_import-accept` = 2L)
+      session$flushReact()
+      expect_length(tracker$events, 2L)
+      expect_identical(tracker$events[[2]], list(request_id = 2L, data = second_payload))
+
+      imported_table_json(second_payload)
+      session$setInputs(`table_import-accept` = 3L)
+      session$flushReact()
+      expect_length(tracker$events, 3L)
+      expect_identical(tracker$events[[3]], list(request_id = 3L, data = second_payload))
+    }
+  )
+})
+
 test_that("signed table download is shown only when a private key is available", {
   shiny::testServer(
     mod_sidebar_server,
