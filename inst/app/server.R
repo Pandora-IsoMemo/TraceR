@@ -193,13 +193,11 @@ shinyServer(function(input, output, session) {
   })
 
   observeEvent(sidebar$generate_example(), {
-    current_table(createExampleTracerTable())
-    table_module$scroll_to_top()
+    request_replacement(createExampleTracerTable(), source = "example")
   }, ignoreInit = TRUE)
 
   observeEvent(sidebar$empty_network(), {
-    current_table(new_tracer_table())
-    table_module$scroll_to_top()
+    request_replacement(new_tracer_table(), source = "empty")
   }, ignoreInit = TRUE)
 
   mod_network_server(

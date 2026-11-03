@@ -67,3 +67,65 @@ test_that("signed table download is shown only when a private key is available",
     }
   )
 })
+
+test_that("load actions confirm dirty replacements without changing the checkpoint", {
+  actions <- list(
+    generate_example = shiny::reactiveVal(0L),
+    empty_network = shiny::reactiveVal(0L),
+    save_table = shiny::reactiveVal(0L),
+    reset_table = shiny::reactiveVal(0L),
+    table_import = shiny::reactiveVal(NULL),
+    uploaded_session = shiny::reactiveVal(NULL)
+  )
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    environment(request_replacement)$sidebar <- actions
+    session$flushReact()
+    checkpoint <- saved_table()
+
+    actions$generate_example(1L)
+    session$flushReact()
+    expect_identical(current_table(), createExampleTracerTable())
+    expect_null(pending_replacement())
+    expect_identical(saved_table(), checkpoint)
+
+    working_data <- current_table()$data
+    working_data$Label[1] <- "Unsaved work"
+    current_table(new_tracer_table(working_data))
+    working_table <- current_table()
+
+    actions$generate_example(2L)
+    session$flushReact()
+    expect_identical(current_table(), working_table)
+    expect_identical(pending_replacement()$source, "example")
+    session$setInputs(cancel_table_replacement = 1L)
+    expect_identical(current_table(), working_table)
+    expect_null(pending_replacement())
+
+    actions$empty_network(1L)
+    session$flushReact()
+    expect_identical(current_table(), working_table)
+    expect_identical(pending_replacement()$source, "empty")
+    session$setInputs(cancel_table_replacement = 2L)
+    expect_identical(current_table(), working_table)
+
+    actions$generate_example(3L)
+    session$flushReact()
+    session$setInputs(confirm_table_replacement = 1L)
+    expect_identical(current_table(), createExampleTracerTable())
+    expect_identical(saved_table(), checkpoint)
+
+    actions$empty_network(2L)
+    session$flushReact()
+    expect_identical(pending_replacement()$source, "empty")
+    session$setInputs(confirm_table_replacement = 2L)
+    expect_identical(current_table(), new_tracer_table())
+    expect_identical(saved_table(), checkpoint)
+    expect_false(unsaved_changes())
+
+    actions$empty_network(3L)
+    session$flushReact()
+    expect_null(pending_replacement())
+  })
+})
