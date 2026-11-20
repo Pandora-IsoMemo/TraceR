@@ -537,7 +537,8 @@ shinyServer(function(input, output, session) {
   })
 
   observeEvent(sidebar$generate_example(), {
-    request_replacement(createExampleTracerTable(), source = "example")
+    network <- createExampleTracerNetwork()
+    request_replacement(network$root, source = "example", network = network)
   }, ignoreInit = TRUE)
 
   observeEvent(sidebar$empty_network(), {

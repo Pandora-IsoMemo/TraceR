@@ -36,16 +36,22 @@ restarting the app.
 
 The example has five ordinary nodes, one capsule named Analyze data, and five
 directed edges. It has no edge returning from Publish results to Research
-question. The capsule has no nested network and clicking it does not navigate.
+question. The Analyze data capsule (`C1` in the sidebar tree) contains three
+steps: Summarize data, Fit model, and Evaluate model, connected by two edges.
+Select `C1` in the tree to view its table or graph. If prompted, choose
+**Save and navigate** to retain the loaded example.
 
 The same example is available from R:
 
 ```{r example}
-example <- createExampleTracerTable()
-knitr::kable(example$data[c("ID", "Label", "Type", "From", "To")])
+example <- createExampleTracerNetwork()
+knitr::kable(get_tracer_table(example)$data[c("ID", "Label", "Type", "From", "To")])
+knitr::kable(get_tracer_table(example, "C1")$data[c("ID", "Label", "Type", "From", "To")])
 ```
 
-**Load Example** replaces the working table but does not save it. If there are
+Use `createExampleTracerTable()` to obtain only the root table.
+
+**Load Example** replaces the working network but does not save it. If there are
 unsaved changes, confirm replacement or cancel to keep them.
 
 ## Build an empty network

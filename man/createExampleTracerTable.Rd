@@ -11,8 +11,9 @@ A valid \code{tracer_table}.
 }
 \description{
 Creates a small research workflow with five ordinary nodes, one capsule,
-and five directed edges. The capsule is a single row and has no nested
-network.
+and five directed edges. This function returns only the root table.
+Use \code{\link[=createExampleTracerNetwork]{createExampleTracerNetwork()}} for the example including the capsule's
+nested analysis workflow.
 }
 \examples{
 table <- createExampleTracerTable()

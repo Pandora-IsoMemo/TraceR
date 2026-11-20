@@ -26,6 +26,24 @@ test_that("a new tracer_network has a root table and no descendants", {
   expect_identical(validate_tracer_network(network)$errors$path, character())
 })
 
+test_that("the example network includes a valid local analysis workflow", {
+  network <- createExampleTracerNetwork()
+  analysis <- get_tracer_table(network, "C1")
+  nodes <- analysis$data$ID[analysis$data$Type == "node"]
+  edges <- analysis$data[analysis$data$Type == "edge", , drop = FALSE]
+  validation <- validate_tracer_network(network)
+
+  expect_identical(network, createExampleTracerNetwork())
+  expect_identical(network$root, createExampleTracerTable())
+  expect_length(nodes, 3L)
+  expect_equal(nrow(edges), 2L)
+  expect_true(all(edges$From %in% nodes & edges$To %in% nodes))
+  expect_equal(nrow(validation$errors), 0L)
+  expect_equal(nrow(validation$warnings), 0L)
+  expect_equal(nrow(as.graph_tables(analysis)$nodes), 3L)
+  expect_equal(nrow(as.graph_tables(analysis)$edges), 2L)
+})
+
 test_that("structural operations accept incomplete editable table content", {
   incomplete <- make_network_test_table("Incomplete", "")
   network <- new_tracer_network(incomplete)

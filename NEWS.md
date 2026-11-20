@@ -6,6 +6,7 @@
 - Added user and developer vignettes covering table editing, checkpoints, JSON/session exchange, and experimental signing.
 - Updated README onboarding, organized the pkgdown guides/reference, and marked the old task checklist as historical.
 - Added hierarchical capsule navigation, structural checkpoints, and whole-network ZIP import/export.
+- Added a three-step analysis workflow inside the example's Analyze data capsule.
 
 # TraceR 26.11.1
 

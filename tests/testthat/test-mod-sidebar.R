@@ -158,6 +158,25 @@ test_that("whole-network ZIP actions replace or nest a hierarchy", {
   })
 })
 
+test_that("the loaded example's analysis capsule is navigable", {
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    session$flushReact()
+    session$setInputs(`sidebar-generate_example` = 1L)
+    session$setInputs(`sidebar-capsule_tree` = list(
+      Root = structure(
+        list(C1 = structure("", stselected = TRUE)),
+        stselected = FALSE
+      )
+    ))
+    expect_identical(pending_navigation(), "C1")
+    session$setInputs(save_navigation = 1L)
+    expect_identical(selected_path(), "C1")
+    expect_identical(current_table(), get_tracer_table(createExampleTracerNetwork(), "C1"))
+  })
+})
+
 test_that("tree refreshes do not overwrite navigation into an imported capsule", {
   example <- createExampleTracerTable()
   network <- new_tracer_network(
@@ -296,6 +315,7 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     actions$generate_example(1L)
     session$flushReact()
     expect_identical(current_table(), createExampleTracerTable())
+    expect_identical(working_network(), createExampleTracerNetwork())
     expect_null(pending_replacement())
     expect_identical(saved_network(), checkpoint)
 
@@ -323,6 +343,7 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     session$flushReact()
     session$setInputs(confirm_table_replacement = 1L)
     expect_identical(current_table(), createExampleTracerTable())
+    expect_identical(working_network(), createExampleTracerNetwork())
     expect_identical(saved_network(), checkpoint)
 
     actions$empty_network(2L)
