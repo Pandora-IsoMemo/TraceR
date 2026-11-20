@@ -33,6 +33,30 @@ test_that("table module edits, adds, deletes, and renames shared data", {
   )
 })
 
+test_that("capsule lifecycle cells and rows are managed outside DT", {
+  data <- new_tracer_table()$data
+  data[1, ] <- ""
+  data$ID[1] <- "C1"
+  data$Type[1] <- "capsule"
+  shared_table <- shiny::reactiveVal(new_tracer_table(data))
+
+  shiny::testServer(
+    mod_table_server,
+    args = list(current_table = shared_table),
+    {
+      session$setInputs(table_cell_edit = list(row = 1, col = 0, value = "C2"))
+      expect_identical(shared_table()$data$ID, "C1")
+
+      session$setInputs(table_cell_edit = list(row = 1, col = 2, value = "node"))
+      expect_identical(shared_table()$data$Type, "capsule")
+
+      session$setInputs(table_rows_selected = 1, delete_row = 1)
+      expect_equal(nrow(shared_table()$data), 1L)
+      expect_match(output$feedback$html, "capsule controls", fixed = TRUE)
+    }
+  )
+})
+
 test_that("table module UI is namespaced and includes DT", {
   html <- htmltools::renderTags(mod_table_ui("table"))$html
 

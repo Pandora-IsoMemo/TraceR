@@ -1,6 +1,8 @@
 library(shiny)
 library(TraceR)
 
+options(shiny.maxRequestSize = 110 * 1024^2)
+
 tagList(
   navbarPage(
     title = paste("TraceR", packageVersion("TraceR")),
@@ -13,6 +15,7 @@ tagList(
       sidebarLayout(
         sidebarPanel(
           width = 2,
+          style = "position:fixed; width:14%; max-width:220px; overflow-y:auto; height:88%",
           mod_sidebar_ui("sidebar")
         ),
         mainPanel(

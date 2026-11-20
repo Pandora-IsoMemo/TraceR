@@ -76,6 +76,32 @@
   is.na(x) | trimws(x) == ""
 }
 
+.tracer_table_id_error <- function(id) {
+  if (grepl(".", id, fixed = TRUE)) {
+    return("IDs must not contain '.'; it is reserved for hierarchical references.")
+  }
+  if (grepl("__", id, fixed = TRUE)) {
+    return("IDs must not contain the reserved sequence '__'.")
+  }
+  NULL
+}
+
+.tracer_capsule_id_error <- function(id) {
+  if (grepl("[/:*?\"<>|]", id) || grepl("\\\\", id)) {
+    return("Capsule IDs cannot contain filesystem path separators or reserved filename characters.")
+  }
+  if (grepl("[[:cntrl:]]", id) || grepl("[[:space:]]$", id)) {
+    return("Capsule IDs cannot contain control characters or end in whitespace.")
+  }
+  if (nchar(enc2utf8(id), type = "bytes") > 255L) {
+    return("Capsule IDs cannot exceed 255 UTF-8 bytes.")
+  }
+  if (grepl("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$", id, ignore.case = TRUE)) {
+    return("Capsule IDs cannot use reserved Windows device names.")
+  }
+  NULL
+}
+
 .tracer_table_append_issue <- function(issues, row, field, message) {
   rbind(issues, .tracer_table_issues(row, field, message))
 }
@@ -115,6 +141,13 @@
   }
 
   types <- data[["Type"]]
+  for (row in which(populated & !id_missing)) {
+    message <- .tracer_table_id_error(ids[row])
+    if (!is.null(message)) {
+      errors <- .tracer_table_append_issue(errors, row, "ID", message)
+    }
+  }
+
   type_missing <- .tracer_table_is_missing(types)
   for (row in which(populated & type_missing)) {
     errors <- .tracer_table_append_issue(
@@ -137,6 +170,33 @@
   }
 
   edge_rows <- which(!is.na(types) & types == "edge")
+  capsule_rows <- which(!is.na(types) & types == "capsule" & !id_missing)
+  capsule_ids <- ids[capsule_rows]
+  folded_capsule_ids <- tolower(capsule_ids)
+  case_collisions <- unique(folded_capsule_ids[
+    duplicated(folded_capsule_ids) | duplicated(folded_capsule_ids, fromLast = TRUE)
+  ])
+  for (folded_id in case_collisions) {
+    rows <- capsule_rows[folded_capsule_ids == folded_id]
+    if (length(unique(capsule_ids[folded_capsule_ids == folded_id])) > 1L) {
+      message <- paste0(
+        "Capsule IDs must be unique without regard to case; conflicting IDs occur in rows ",
+        paste(rows, collapse = ", "),
+        "."
+      )
+      for (row in rows) {
+        errors <- .tracer_table_append_issue(errors, row, "ID", message)
+      }
+    }
+  }
+
+  for (row in capsule_rows) {
+    message <- .tracer_capsule_id_error(ids[row])
+    if (!is.null(message)) {
+      errors <- .tracer_table_append_issue(errors, row, "ID", message)
+    }
+  }
+
   for (row in edge_rows) {
     edge_name <- if (id_missing[row]) paste0("row ", row) else paste0("edge '", ids[row], "'")
 
@@ -148,6 +208,19 @@
           row,
           field,
           paste0("Edge ", edge_name, " is missing required field '", field, "'.")
+        )
+        next
+      }
+
+      if (grepl(".", reference, fixed = TRUE)) {
+        errors <- .tracer_table_append_issue(
+          errors,
+          row,
+          field,
+          paste0(
+            "Edge ", edge_name, " uses unsupported hierarchical reference '",
+            reference, "' in field '", field, "'; references must be local IDs."
+          )
         )
         next
       }

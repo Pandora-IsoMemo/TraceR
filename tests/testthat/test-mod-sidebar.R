@@ -8,6 +8,15 @@ test_that("shared sidebar exposes current table and session controls", {
   expect_match(html, "Load Empty", fixed = TRUE)
   expect_match(html, "Save", fixed = TRUE)
   expect_match(html, "Reset", fixed = TRUE)
+  expect_match(html, 'id="sidebar-capsule_tree"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-selected_path"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-add_capsule"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-rename_capsule"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-delete_capsule"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-download_network"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-network_zip_file"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-import_network"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-import_network_as_capsule"', fixed = TRUE)
   expect_match(html, 'id="sidebar-table_import-openPopup"', fixed = TRUE)
   expect_match(html, "Session", fixed = TRUE)
   expect_match(html, "Download Session", fixed = TRUE)
@@ -28,7 +37,10 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_true(is.list(session$returned))
       expect_named(session$returned, c(
         "generate_example", "empty_network", "save_table", "reset_table",
-        "table_import", "table_import_request_id", "uploaded_session"
+        "add_capsule", "new_capsule_id", "rename_capsule", "rename_capsule_id",
+        "delete_capsule", "network_zip_file", "import_network", "import_capsule_id",
+        "import_network_as_capsule", "table_import", "table_import_request_id",
+        "uploaded_session", "capsule_selection"
       ))
       session$setInputs(generate_example = 1)
       expect_equal(session$returned$generate_example(), 1)
@@ -51,6 +63,99 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_match(output$unsaved_status$html, "Saved", fixed = TRUE)
     }
   )
+})
+
+test_that("capsule tree selections return slash-separated paths", {
+  network <- new_tracer_network()
+  network <- add_tracer_capsule(network, "", "C1")
+  network <- add_tracer_capsule(network, "C1", "C2")
+
+  shiny::testServer(
+    mod_sidebar_server,
+    args = list(
+      current_table = shiny::reactiveVal(new_tracer_table()),
+      root_inputs = shiny::reactiveValues(),
+      current_network = shiny::reactive(network),
+      selected_path = shiny::reactive("")
+    ),
+    {
+      selection <- list(
+        Root = structure(
+          list(
+            C1 = structure(
+              list(C2 = structure("", stselected = TRUE)),
+              stselected = FALSE
+            )
+          ),
+          stselected = FALSE
+        )
+      )
+      session$setInputs(capsule_tree = selection)
+      expect_identical(session$returned$capsule_selection(), "C1/C2")
+      expect_match(output$selected_path, "Root", fixed = TRUE)
+    }
+  )
+})
+
+test_that("selecting a capsule loads its table into the shared app state", {
+  child_data <- new_tracer_table()$data
+  child_data[1, ] <- ""
+  child_data$ID[1] <- "N1"
+  child_data$Type[1] <- "node"
+  child_table <- new_tracer_table(child_data)
+
+  network <- new_tracer_network()
+  network <- add_tracer_capsule(network, "", "C1")
+  network <- set_tracer_table(network, "C1", child_table)
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    working_network(network)
+    saved_network(network)
+    path_map(tracer_network_path_map(network))
+    current_table(get_tracer_table(network, ""))
+    session$flushReact()
+
+    tree_input <- list(
+      Root = structure(
+        list(C1 = structure("", stselected = TRUE)),
+        stselected = FALSE
+      )
+    )
+    session$setInputs(`sidebar-capsule_tree` = tree_input)
+    session$flushReact()
+
+    expect_identical(selected_path(), "C1")
+    expect_identical(current_table(), child_table)
+  })
+})
+
+test_that("whole-network ZIP actions replace or nest a hierarchy", {
+  imported_network <- add_tracer_capsule(new_tracer_network(), "", "ImportedChild")
+  archive <- tempfile(fileext = ".zip")
+  tracer_network_to_zip(imported_network, archive)
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    session$setInputs(`sidebar-network_zip_file` = list(
+      name = "network.zip",
+      size = file.info(archive)$size,
+      type = "application/zip",
+      datapath = archive
+    ))
+    session$setInputs(`sidebar-import_network` = 1L)
+    session$flushReact()
+
+    expect_true("ImportedChild" %in% names(working_network()$tables))
+    expect_null(pending_replacement())
+
+    session$setInputs(`sidebar-import_capsule_id` = "ImportedAsCapsule")
+    session$setInputs(`sidebar-import_network_as_capsule` = 1L)
+    session$flushReact()
+    expect_true("ImportedAsCapsule" %in% names(working_network()$tables))
+    expect_true("ImportedAsCapsule/ImportedChild" %in% names(working_network()$tables))
+    expect_identical(validate_tracer_network(working_network())$errors$path, character())
+  })
 })
 
 test_that("table imports emit once per completed request, including identical payloads", {
@@ -124,21 +229,31 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     empty_network = shiny::reactiveVal(0L),
     save_table = shiny::reactiveVal(0L),
     reset_table = shiny::reactiveVal(0L),
+    add_capsule = shiny::reactiveVal(0L),
+    new_capsule_id = shiny::reactiveVal(""),
+    rename_capsule = shiny::reactiveVal(0L),
+    rename_capsule_id = shiny::reactiveVal(""),
+    delete_capsule = shiny::reactiveVal(0L),
+    network_zip_file = shiny::reactiveVal(NULL),
+    import_network = shiny::reactiveVal(0L),
+    import_capsule_id = shiny::reactiveVal(""),
+    import_network_as_capsule = shiny::reactiveVal(0L),
     table_import = shiny::reactiveVal(NULL),
-    uploaded_session = shiny::reactiveVal(NULL)
+    uploaded_session = shiny::reactiveVal(NULL),
+    capsule_selection = shiny::reactiveVal(NULL)
   )
   app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
 
   shiny::testServer(app$serverFuncSource(), {
     environment(request_replacement)$sidebar <- actions
     session$flushReact()
-    checkpoint <- saved_table()
+    checkpoint <- saved_network()
 
     actions$generate_example(1L)
     session$flushReact()
     expect_identical(current_table(), createExampleTracerTable())
     expect_null(pending_replacement())
-    expect_identical(saved_table(), checkpoint)
+    expect_identical(saved_network(), checkpoint)
 
     working_data <- current_table()$data
     working_data$Label[1] <- "Unsaved work"
@@ -164,14 +279,14 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     session$flushReact()
     session$setInputs(confirm_table_replacement = 1L)
     expect_identical(current_table(), createExampleTracerTable())
-    expect_identical(saved_table(), checkpoint)
+    expect_identical(saved_network(), checkpoint)
 
     actions$empty_network(2L)
     session$flushReact()
     expect_identical(pending_replacement()$source, "empty")
     session$setInputs(confirm_table_replacement = 2L)
     expect_identical(current_table(), new_tracer_table())
-    expect_identical(saved_table(), checkpoint)
+    expect_identical(saved_network(), checkpoint)
     expect_false(unsaved_changes())
 
     actions$empty_network(3L)

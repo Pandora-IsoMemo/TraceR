@@ -122,9 +122,9 @@ test_that("blank rows are allowed, while populated rows require IDs and types", 
   expect_true(any(result$errors$row == 1L & result$errors$field == "Type"))
 })
 
-test_that("IDs must be populated and unique but have no extra naming restrictions", {
+test_that("IDs must be populated and unique while single underscores remain valid", {
   data <- make_test_table_data(
-    ids = c("same", "same", NA_character_, "", "  ", "path/with.dots_and_underscores"),
+    ids = c("same", "same", NA_character_, "", "  ", "path/with_underscores"),
     types = rep("node", 6)
   )
   data$Label[3:5] <- "populated"

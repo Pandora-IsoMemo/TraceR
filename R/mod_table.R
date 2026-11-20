@@ -166,7 +166,25 @@ mod_table_server <- function(id, current_table) {
 
     observeEvent(input$table_cell_edit, {
       edit <- input$table_cell_edit
-      data <- DT::editData(current_table()$data, edit, rownames = FALSE)
+      current <- current_table()
+      row <- edit$row
+      column <- edit$col + 1L
+      field <- names(current$data)[column]
+
+      if (row >= 1L && row <= nrow(current$data) &&
+          identical(field, "ID") && identical(current$data$Type[row], "capsule")) {
+        feedback(list(type = "warning", text = "Rename capsules using the capsule controls."))
+        return()
+      }
+      if (row >= 1L && row <= nrow(current$data) && identical(field, "Type")) {
+        old_type <- current$data$Type[row]
+        if (identical(old_type, "capsule") || identical(edit$value, "capsule")) {
+          feedback(list(type = "warning", text = "Create or remove capsules using the capsule controls."))
+          return()
+        }
+      }
+
+      data <- DT::editData(current$data, edit, rownames = FALSE)
       current_table(new_tracer_table(data))
     })
 
@@ -185,6 +203,11 @@ mod_table_server <- function(id, current_table) {
     observeEvent(input$delete_row, {
       selected <- input$table_rows_selected
       if (length(selected) != 1L || selected < 1L || selected > nrow(current_table()$data)) {
+        return()
+      }
+
+      if (identical(current_table()$data$Type[selected], "capsule")) {
+        feedback(list(type = "warning", text = "Delete capsules using the capsule controls."))
         return()
       }
 
