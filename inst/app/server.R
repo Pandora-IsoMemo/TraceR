@@ -18,14 +18,8 @@ shinyServer(function(input, output, session) {
     path_public <- system.file("app/public_key.pem", package = "TraceR")
   }
 
-  # Check if key files exists
-  if (file.exists(path_private) && file.exists(path_public)) {
-    private_key <- openssl::read_key(path_private)
-    public_key <- openssl::read_pubkey(path_public)
-  } else {
-    private_key <- NULL
-    public_key <- NULL
-  }
+  private_key <- if (file.exists(path_private)) openssl::read_key(path_private) else NULL
+  public_key <- if (file.exists(path_public)) openssl::read_pubkey(path_public) else NULL
 
   sidebar <- mod_sidebar_server(
     "sidebar",

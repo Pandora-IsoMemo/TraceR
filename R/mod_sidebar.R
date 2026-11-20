@@ -88,10 +88,17 @@ mod_sidebar_server <- function(
       }
 
       tagList(
-        downloadButton(session$ns("download_table"), "Download"),
+        downloadButton(session$ns("download_table"), "Download JSON"),
         tags$br(), tags$br(),
-        downloadButton(session$ns("download_signed_table"), "Download Signed"),
-        tags$br(),
+        downloadButton(session$ns("download_signed_table"), "Download Signed JSON"),
+        tags$div(
+          class = "alert alert-warning",
+          role = "alert",
+          style = "margin-top: 10px; padding: 10px; font-size: 13px;",
+          tags$strong("Experimental: testing only"),
+          tags$br(),
+          "Future versions may not verify current signed files. Keep an unsigned JSON copy."
+        ),
         tags$br()
       )
     })

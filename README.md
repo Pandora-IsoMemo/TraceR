@@ -16,6 +16,20 @@ See the latest release notes in [NEWS.md](./NEWS.md)
 
 - Documentation home: https://pandora-isomemo.github.io/TraceR/
 
+### Experimental signed downloads
+
+Signed network-table JSON exchange is currently for testing only. Its format
+and verification behavior may change; future versions may not be able to verify
+or import signed files downloaded today. Do not rely on these files as your only
+long-term copy. Keep an unsigned network-table JSON download as well.
+
+Signing uses the configured private key. Importing a signed file requires
+successful verification with the public key from the same key pair. A different
+key pair cannot verify the signature, so signed files are not currently guaranteed
+to work across local and server environments. Public keys are not yet distributed,
+and private keys will never be shared. Signature verification remains mandatory
+when importing a file that claims to be signed.
+
 ## Notes for developers
 
 ### Documentation Updates

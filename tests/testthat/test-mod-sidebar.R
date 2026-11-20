@@ -47,6 +47,7 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       session$flushReact()
       expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
       expect_false(grepl("Download Signed", output$table_download_controls$html, fixed = TRUE))
+      expect_false(grepl("Experimental: testing only", output$table_download_controls$html, fixed = TRUE))
       expect_match(output$unsaved_status$html, "Saved", fixed = TRUE)
     }
   )
@@ -109,6 +110,10 @@ test_that("signed table download is shown only when a private key is available",
       session$flushReact()
       expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
       expect_match(output$table_download_controls$html, "Download Signed", fixed = TRUE)
+      expect_match(output$table_download_controls$html, "Experimental: testing only", fixed = TRUE)
+      expect_match(output$table_download_controls$html, "Keep an unsigned JSON copy", fixed = TRUE)
+      expect_match(output$table_download_controls$html, 'class="alert alert-warning"', fixed = TRUE)
+      expect_match(output$table_download_controls$html, "<strong>Experimental: testing only</strong>", fixed = TRUE)
     }
   )
 })
@@ -172,5 +177,32 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     actions$empty_network(3L)
     session$flushReact()
     expect_null(pending_replacement())
+  })
+})
+
+test_that("keys are loaded independently in the application server", {
+  withr::local_envvar(c(RUNNING_IN_DOCKER = "TRUE"))
+  test_private_key <- structure(list(), class = "test_private_key")
+  test_public_key <- structure(list(), class = "test_public_key")
+  testthat::local_mocked_bindings(
+    read_key = function(path) test_private_key,
+    read_pubkey = function(path) test_public_key,
+    .package = "openssl"
+  )
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+  server <- app$serverFuncSource()
+  server_environment <- new.env(parent = environment(server))
+  environment(server) <- server_environment
+
+  server_environment$file.exists <- function(path) basename(path) == "public_key.pem"
+  shiny::testServer(server, {
+    expect_null(private_key)
+    expect_identical(public_key, test_public_key)
+  })
+
+  server_environment$file.exists <- function(path) basename(path) == "private_key.pem"
+  shiny::testServer(server, {
+    expect_identical(private_key, test_private_key)
+    expect_null(public_key)
   })
 })
