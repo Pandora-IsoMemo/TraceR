@@ -1,0 +1,216 @@
+---
+title: "Using TraceR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using TraceR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(TraceR)
+```
+
+## What TraceR currently does
+
+TraceR describes one network as an editable table and derives a directed graph
+from that table. The **Network Table** tab opens first. The **Network Graph**
+tab shows the same data; switching tabs does not reset the network.
+
+The shared sidebar contains **Network Table** controls and separate **Session**
+controls. A session is one running Shiny connection, not permanent storage.
+
+**Save is not a file download.** It creates a checkpoint only in the current
+session. Download a JSON or session file to retain your work after closing or
+restarting the app.
+
+## Start with the example
+
+1. Click **Load Example** in the sidebar.
+2. Inspect the rows in **Network Table**.
+3. Open **Network Graph** to see the directed research workflow.
+4. Return to **Network Table** and double-click a Label cell to edit it.
+5. Finish editing by leaving the cell, for example with Tab.
+6. Open **Network Graph** to see the updated label.
+
+The example has five ordinary nodes, one capsule named Analyze data, and five
+directed edges. It has no edge returning from Publish results to Research
+question. The capsule has no nested network and clicking it does not navigate.
+
+The same example is available from R:
+
+```{r example}
+example <- createExampleTracerTable()
+knitr::kable(example$data[c("ID", "Label", "Type", "From", "To")])
+```
+
+**Load Example** replaces the working table but does not save it. If there are
+unsaved changes, confirm replacement or cancel to keep them.
+
+## Build an empty network
+
+Click **Load Empty**, then **Add row**. Load Empty creates a zero-row table, not
+a prefilled editing row. It also asks for confirmation before replacing unsaved
+work. Fill the new row with an ID, Label, and Type. Add further rows for other
+nodes and edges.
+
+Each table has eleven columns:
+
+| Column | Meaning |
+|--------|---------|
+| ID | A unique identifier within this network, including edges. |
+| Label | Optional text displayed on a node, capsule, or edge. |
+| Type | Exactly `node`, `capsule`, or `edge`, entered as text. |
+| From | For an edge, the ID of its source node or capsule. |
+| To | For an edge, the ID of its target node or capsule. |
+| Unique identifier | Optional external identifier value; the column itself is mandatory. |
+| Five optional columns | Additional text metadata with user-chosen column names. |
+
+The six mandatory column names cannot be renamed through the editor. All cell
+values are editable. ID values are not generated automatically, and node IDs
+and edge IDs must be unique across the whole table. Edges run from From to To.
+There is no requirement to use the example's N/E/C naming convention.
+
+For a minimal connected network, create these three rows:
+
+| ID | Label | Type | From | To |
+|----|-------|------|------|----|
+| A | First step | node | | |
+| B | Second step | node | | |
+| AB | leads to | edge | A | B |
+
+Leave unused fields empty. Do not invent an external identifier just to fill
+the Unique identifier column.
+
+## Edit and organize the table
+
+- Double-click a cell to start editing; leave it to commit the value.
+- **Add row** appends a blank row. Sorting and searches are cleared, and the
+  table scrolls to the appended row so it can be filled in.
+- Select a row, then click **Delete selected row** to delete it.
+- Choose an **Optional column**, enter its **New optional column name**, and
+  click **Rename column**. Names must be non-empty and unique.
+- Use header sorting, the global Search field, or column filters to inspect
+  the table. These change the view, not the saved data or its original row order.
+
+The table has no pagination. Its fixed-height viewport shows roughly ten
+single-line rows, with vertical and horizontal scrolling for larger tables.
+Text does not wrap in data cells. Blank rows retain a usable editing height.
+
+Deleting a node or capsule does **not** delete edges that refer to it. The app
+reports those unresolved references; edit or delete the edges yourself.
+
+## Understand validation and graph availability
+
+Incomplete edits are expected. A completely blank row is permitted; once it
+contains data, it needs an ID and valid Type. Duplicate IDs, unsupported types,
+missing edge endpoints, and edges referring to other edges are errors.
+An endpoint that names an unknown node or capsule is a warning.
+
+| Operation | Validation errors | Unresolved-reference warnings |
+|-----------|-------------------|-------------------------------|
+| Editing | Preserved and displayed | Preserved and displayed |
+| Save | Blocked | Allowed, with warnings |
+| Table JSON download | Blocked | Allowed, with warnings |
+| Table JSON import | Rejected | Allowed, with warnings |
+| Graph rendering | Unavailable | Unavailable |
+
+Validation messages identify the row/field or affected edge and reference.
+The app does not silently repair invalid values. While the table cannot be
+rendered, **Network Graph** shows feedback and a placeholder rather than a
+partial or stale graph. Correcting the table restores rendering automatically.
+
+The graph uses a fixed top-down layout: ordinary nodes are circles and capsules
+are rounded boxes in different fixed colors. Labels appear when present;
+missing labels are visually blank rather than replaced with IDs. Pan and zoom
+are available, and node-click feedback reports the original TraceR ID. There
+are no appearance settings or capsule navigation controls yet.
+
+## Save, Reset, and unsaved changes
+
+The sidebar displays **Saved** or **Unsaved changes** by comparing the current
+table with its saved checkpoint. Cell edits, row operations, optional-column
+renames, and loading/importing another table can change that status. Reverting
+to the saved values clears it. Sorting, filtering, and tab switching do not
+mark the data as changed.
+
+**Save** validates the working table and replaces the session-local checkpoint.
+It neither writes a permanent server file nor downloads a file. **Reset** asks
+before discarding changes, then restores the complete checkpoint: values,
+missing values, rows, column names, and their original order. Reset does not
+mean Load Empty. Initially, the checkpoint is the empty table.
+
+For example: load the example, Save, change N2's label, delete E3, rename an
+optional column, then Reset and confirm. The saved example is restored in full.
+
+## Download and import network-table JSON
+
+Use the table download in the sidebar's **Network Table** section. It is labeled
+**Download** when no private key is loaded, or **Download JSON** alongside
+**Download Signed JSON** when a private key is available.
+
+The unsigned download is `data.json`. It exports the **current working table**,
+including unsaved edits, without changing the checkpoint. It contains no graph
+rendering settings or application inputs. Both signed and unsigned table
+downloads block validation errors and allow unresolved-reference warnings.
+
+Use **Import** to choose a supported JSON file through the DataTools dialog.
+After loading the file, click **Accept**. Signed files must verify successfully
+before they are accepted as tables. Invalid data or failed verification leaves
+the current table unchanged. If the working table is dirty, confirm replacement
+or cancel. The imported table does not overwrite the checkpoint: Save it to make
+it the new checkpoint, or Reset to return to the previous one.
+
+Legacy DiagrammeR graph JSON files are not network-table JSON and cannot be
+imported through this action. There is no automatic graph-to-table migration.
+
+### Experimental signatures
+
+**Signed JSON exchange is for testing only.** Its format or verification behavior
+may change, and future versions may not verify or import files downloaded today.
+Keep an unsigned JSON copy; do not use a signed file as your only long-term copy.
+
+Signed downloads use RSA-SHA256 and the configured private key. Import requires
+the corresponding public key from the same key pair. A file signed on the server
+may therefore fail verification locally when a different public key is configured.
+Public keys are not yet distributed, and private keys will never be shared.
+Signed-download visibility currently depends only on private-key availability,
+not on a user ID or local/server restriction.
+
+A successful verification checks integrity against the configured signing key.
+It does not identify the downloader or author, record a signing time, or establish
+that the network's contents are scientifically correct. The Author optional
+column is ordinary editable text, not authenticated identity.
+
+Editing a signed payload invalidates its existing signature. Changing only the
+outer envelope's formatting may leave verification intact if the decoded payload
+string is unchanged. Networks can still be edited in TraceR and downloaded again
+with a new signature. Unsigned imports are permitted but not authenticated.
+
+## Download and import sessions
+
+The **Session** section is separate from network-table JSON. **Download Session**
+creates a DataTools `.tracer` bundle containing the working table and application
+inputs. Its controls include Notes and File name. Session downloads are unsigned
+and are not replaced by the JSON workflow.
+
+**Import Session** restores the bundle's table and matching application inputs.
+Dirty work requires replacement confirmation. The saved checkpoint is not
+imported or replaced, so the restored table may be unsaved relative to it. Old
+graph-only sessions are unsupported.
+
+Session files may contain temporary widget/input state as well as useful settings;
+they are not an authenticated audit history. Unlike table JSON import, session
+restore checks table structure but can retain incomplete content, with validation
+feedback. Save may still be blocked and graph rendering unavailable until that
+content is corrected.
+
+## Current limits
+
+TraceR currently edits one network level. Nested capsule data, hierarchy
+navigation, linked network instances, templates defining allowed element types,
+permanent server storage, authenticated authorship, revision history, and
+configurable graph appearance are not implemented. Save checkpoints disappear
+when the Shiny session ends. The developer guide documents the architecture and
+extension boundaries for these future features.

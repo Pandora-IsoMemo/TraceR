@@ -1,0 +1,333 @@
+---
+title: "Architecture and Extension"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Architecture and Extension}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(TraceR)
+```
+
+## Scope of this guide
+
+This is the implementation snapshot reviewed on 2026-11-20, based on TraceR
+26.11.1 and the subsequent fixes in this checkout. It describes the current
+application, not the historical roadmap. Update it when changing module
+interfaces, replacement rules, persistence, or signature formats.
+
+TraceR is an R package containing a Shiny app. The root UI is `inst/app/ui.R`;
+the root server is `inst/app/server.R`. Installed packages contain that directory
+as `app/`, and `startApplication()` runs it. The source-development entry point
+`inst/main.R` calls `devtools::load_all()` before starting the app.
+
+## Ownership and module boundaries
+
+```text
+Root server
+  current_table --------> Table module (edits current_table)
+       |                         |
+       +--> Network module       +--> validation feedback
+       |    as.graph_tables()
+       |    DiagrammeR graph
+       +--> Sidebar module (downloads, session data)
+  saved_table ----------> unsaved_changes
+  pending_replacement --> confirmation --> current_table
+  inputs_to_restore ----> updateInput(root input, root session)
+
+Sidebar actions/import requests --> Root server coordination
+```
+
+| Owner | Source | Responsibility |
+|-------|--------|----------------|
+| Root UI/server | `inst/app/ui.R`, `inst/app/server.R` | Module wiring, keys, checkpoints, replacement confirmation, JSON verification, session restore. |
+| Shared sidebar | `R/mod_sidebar.R` | Controls, download handlers, DataTools import modules, action/import reactives. |
+| Table module | `R/mod_table.R` | Editable DT, row operations, optional-column renaming, table feedback and scroll behavior. |
+| Network module | `R/mod_network.R` | Reactive graph derivation, render availability, click feedback, pan/zoom. |
+| Table model | `R/04_tracerTable.R` | Schema constructor, validation, value-based comparison. |
+| Conversion | `R/05_graphTables.R` | Mapping TraceR rows into styled DiagrammeR node/edge tables. |
+| JSON and signatures | `R/06_tracerTableJson.R` | Pure table serialization, deserialization, signing, verification. |
+| Configuration | `R/00_config.R`, `inst/config.yaml` | DataTools import/session configuration. |
+
+The root UI has no module namespace. Each module namespaces its own controls.
+The sidebar receives the **root input object** for session downloads; its own
+input scope would not include the sibling Table and Network modules.
+
+The Table module receives the mutable `current_table` reactive value. Network
+receives the same value but does not mutate it. Its graph is a derived reactive,
+not a second authoritative network. The sidebar does not own a checkpoint.
+
+## Working state, checkpoints, and replacements
+
+`current_table` and `saved_table` start as equivalent zero-row tables. Their roles
+are deliberately different: editing changes only the working table; Save changes
+only the checkpoint. Both are session-local and disappear on session termination.
+
+`unsaved_changes` compares ordered column names and character vectors through
+`tracer_table_data_identical()`. Incidental data-frame row names are ignored.
+Sorting, filtering, and graph state do not enter this comparison. Reverting an
+edit to its checkpoint value clears dirty state without needing another Save.
+
+| Action | Working table | Checkpoint |
+|--------|---------------|------------|
+| Cell/row/column-name edit | Updated, even if incomplete | Unchanged |
+| Save | Unchanged | Updated only if validation has no errors |
+| Reset and confirm | Complete checkpoint restored | Unchanged |
+| Load Example / Load Empty | Replaced after dirty confirmation when necessary | Unchanged |
+| Accepted table JSON import | Verified/validated table replaces work after dirty confirmation | Unchanged |
+| Accepted session import | Structurally valid session table replaces work after dirty confirmation | Unchanged |
+| Any download | Unchanged | Unchanged |
+
+`request_replacement()` is the root's common gate for loads and imports. It either
+applies a replacement immediately when clean or stores it in
+`pending_replacement` and opens confirmation. Cancel discards the pending request,
+not the current table. `apply_replacement()` installs the table, requests scrolling
+to the top, and restores session inputs when supplied. Reset has its own
+confirmation handler. Ordinary tab switching is not blocked.
+
+## Table model and validation
+
+A `tracer_table` is `structure(list(data = data), class = "tracer_table")`.
+It has one component and exactly eleven character columns. Six required names
+are fixed: ID, Label, Type, From, To, Unique identifier. Five optional field names
+exist **only** as data-frame column names; do not duplicate them in metadata.
+Supplied column order is preserved, and non-character columns are rejected.
+
+`new_tracer_table()` checks structure, not complete content. Content checking is
+explicit through `validate_tracer_table()`, which returns `errors` and `warnings`
+data frames with `row`, `field`, and `message`. Structural failures skip content
+checking. Missing values include NA, empty strings, and whitespace-only strings;
+validation does not modify the input.
+
+Completely blank rows are permitted. Populated rows require unique IDs and a
+Type of node, capsule, or edge. Edges require endpoints naming nodes/capsules;
+edge-to-edge references are errors and unknown endpoints are warnings. References
+are resolved only at the current network level.
+
+```{r validation}
+table <- createExampleTracerTable()
+validate_tracer_table(table)
+
+unresolved <- new_tracer_table(table$data)
+unresolved$data$From[unresolved$data$ID == "E1"] <- "missing-node"
+validate_tracer_table(unresolved)$warnings
+```
+
+Save, table downloads, and table JSON import block **all validation errors** but
+allow warnings with visible feedback. Graph conversion blocks both. Session
+restore retains the earlier editing-session semantics: structure is checked,
+but incomplete content may be restored and reported, without automatically Save.
+Pure JSON functions check structure only; Shiny coordinators enforce content
+policy. Do not silently make the pure functions stricter than this contract.
+
+## DT updates and import event sequencing
+
+DT uses server-side processing, no pagination, horizontal scrolling, and a
+400px scroll viewport. Data cells do not wrap. Ordinary updates use
+`DT::replaceData()` without regenerating the widget or resetting view state.
+Column-name changes update `column_names`, which triggers a full widget render.
+`DT::editData(..., rownames = FALSE)` handles DT's zero-based column coordinates;
+do not replace it with one-based manual assignments.
+
+Adding a row clears searches through `DT::clearSearch()` and resets ordering.
+A custom client message waits for a DataTables draw with the expected row count
+before scrolling to the appended row. This avoids sorting placing a blank row
+at the top or a filter hiding it. Whole-table replacements request top scrolling
+through the Table module's returned `scroll_to_top()` function.
+
+The sidebar wraps the DataTools JSON import result as
+`list(request_id = counter, data = imported)`. Each nested Accept event registers
+a one-time `session$onFlushed()` callback that increments the counter after
+DataTools publishes its result. One-time applies to each registration, not the
+whole session. The payload read is isolated, so **only the completed counter**
+invalidates the import request. This both permits repeated identical files and
+prevents a changed payload firing once with the previous ID and again with a
+new ID. Preserve these two behaviors when changing the importer.
+
+## Graph derivation
+
+`as.graph_tables()` dispatches to `as.graph_tables.tracer_table()`, returning
+`nodes` and `edges` data frames. Blank editing rows are ignored. TraceR IDs map
+to sequential numeric DiagrammeR IDs, while `tracer_id`, `tracer_type`, and
+`tracer_unique_identifier` retain the original identity fields. Optional metadata
+remains in the authoritative table rather than the derived graph.
+
+The conversion owns fixed element styling and labels: ordinary circles, rounded
+capsule boxes, and distinct colors. Missing node labels become empty strings;
+missing edge labels become a visually blank space to accommodate DiagrammeR's
+renderer. Never substitute an ID for a missing label.
+
+The Network module constructs a directed graph using dot and rankdir TB. It
+removes the widget for invalid data, reports issues, and renders again when the
+table is valid. `renderFlowchart()`, `initialize_graph_zooming()`, and
+`displayNodeId()` remain active helpers. The zoom observer handles dynamically
+inserted SVGs; click feedback maps numeric graph IDs back to TraceR IDs.
+
+## Table JSON format, version 1
+
+`tracer_table_to_json()` writes an object with exactly `format`, `version`,
+`columns`, and `data`. `columns` is an ordered string array; `data` is an ordered
+array of row objects with every declared column. Empty data is `[]`. Values are
+strings or null, never numeric graph IDs or rendering attributes. NA is JSON
+null; empty strings remain empty strings. Column order is taken from `columns`,
+not guessed from row objects. JSON version describes the format, not revisions.
+
+```{r empty-json}
+cat(tracer_table_to_json(new_tracer_table()))
+```
+
+Serialization uses jsonlite with `auto_unbox = TRUE`, null/NA encoded as null,
+`pretty = FALSE`, `digits = NA`, and UTF-8 names/values. Deserialization accepts
+text, raw bytes, or parsed objects and rejects unsupported versions. DataTools'
+list importer uses jsonlite simplification; the adapter also handles data-frame
+rows and NA representations of null (including logical NA in all-null columns).
+
+```{r round-trip}
+original <- createExampleTracerTable()
+original$data$Author[1] <- NA_character_
+original$data$Description[2] <- ""
+restored <- tracer_table_from_json(tracer_table_to_json(original))
+stopifnot(tracer_table_data_identical(original, restored))
+stopifnot(is.na(restored$data$Author[1]), restored$data$Description[2] == "")
+```
+
+Legacy DiagrammeR graph JSON is not this format. The app rejects it rather than
+guessing a migration. Table JSON contains neither saved checkpoints nor root
+Shiny inputs.
+
+## Experimental signature contract
+
+Signed downloads are for testing only and may become incompatible with future
+versions. Public keys are not yet distributed; private keys will never be shared.
+Do not present signatures as user authentication or an audit trail.
+
+The signed version 1 envelope has exactly these fields:
+
+| Field | Value/meaning |
+|-------|---------------|
+| format | `tracer_table_signed` |
+| version | `1` |
+| algorithm | `RSA-SHA256` |
+| payload | Exact compact unsigned table JSON stored as a JSON string |
+| signature | Base64-encoded RSA signature |
+
+The bytes passed to both OpenSSL operations are exactly:
+
+```text
+UTF8("TraceR/tracer_table_signed/1\nRSA-SHA256\n" + payload)
+```
+
+The prefix has two LF newline bytes; there is no additional trailing newline.
+`charToRaw(enc2utf8(...))` produces the byte sequence. Signing and verification
+explicitly supply `hash = openssl::sha256`. OpenSSL performs RSA signing; base64
+only encodes the signature for JSON transport and does not encrypt the payload.
+
+Verification decodes the signature and uses the envelope's payload string
+directly. It never reserializes the parsed table to recreate signed bytes.
+Changing payload whitespace, values, row order, or column names/order invalidates
+the signature. Changing only outer JSON formatting may not, if the decoded payload
+is identical. Metadata must match the supported constants. Verification failures,
+missing public keys, and unsupported algorithms are rejected, never downgraded
+to unsigned import. SHA-1 remains only in the deprecated graph-signing path.
+
+The signature proves integrity against the configured public key and that the
+corresponding private key signed the bytes, assuming proper key custody. It does
+not record a user ID, author, timestamp, expiry, or session. Anyone permitted to
+use signed download can obtain a new signature for their validated table.
+Optional Author values are not trusted identity claims.
+
+## Keys, deployment, and sessions
+
+The root server loads keys independently. When `RUNNING_IN_DOCKER` is set, it
+uses `/app/inst/app/private_key.pem` and `/app/inst/app/public_key.pem`; otherwise
+it uses package resources `app/private_key.pem` and `app/public_key.pem`.
+Missing files produce NULL for that key. Missing or mismatched public keys prevent
+signed verification; a missing private key removes the signed download button.
+There is currently no USERID/environment authorization condition on signed
+downloads. Do not describe local signing as automatically disabled.
+
+Local and server keypairs may differ. Reusing a signed file requires the public
+key corresponding to its original signing private key. Independent loading does
+not distribute keys or establish new trust automatically. Never publish private
+key material in docs, fixtures, logs, or downloads.
+
+Jenkins supplies key files from credentials during its Docker test build. Git
+exclusion alone is not proof that a key is absent from built artifacts. Keep
+credential handling under deployment ownership; this guide does not prescribe
+copying production private keys to local installations.
+
+Session downloads use `DataTools::downloadModelServer()` with
+`dat = reactive(list(tracer_table = current_table()))`, root inputs, NULL model,
+and `onlySettings = TRUE`. DataTools `.tracer` bundles remain unsigned. The saved
+checkpoint is not included. Session import extracts `data$tracer_table`, checks
+its class/data-frame structure, requests replacement, then restores matching
+inputs through `updateInput()` using the root session. Removed IDs are ignored.
+Session serialization captures inputs broadly, including transient widget state;
+do not treat it as authenticated persistence or assume temporary upload paths
+are portable.
+
+## Tests and documentation workflow
+
+Run from the checkout:
+
+```{r development-commands, eval=FALSE}
+devtools::load_all()
+devtools::test(filter = "mod-sidebar")
+devtools::test(filter = "tracer-table-json")
+devtools::test()
+devtools::document()
+devtools::build()
+devtools::check()
+pkgdown::build_site()
+```
+
+| Test slice | Important contracts |
+|------------|---------------------|
+| `test-tracer-table.R` | Eleven-column schema, incomplete states, IDs, edge warnings/errors. |
+| `test-graph-tables-tracer-table.R` | Identity mapping, fixed appearance, missing labels, strict conversion. |
+| `test-mod-table.R` | Shared edits, row operations, optional-column names. |
+| `test-mod-sidebar.R` | Controls, completed import events, Load confirmation, independent key loading. |
+| `test-tracer-table-json.R` | JSON/null/order round-trips, RSA-SHA256 verification, tamper detection. |
+| `test-mod-network.R` | Derived graph behavior and retained legacy APIs/deprecation signals. |
+
+Use `shiny::testServer()` for reactive behavior and ephemeral RSA keys for
+cryptography. Use `lifecycle::expect_deprecated()` for lifecycle assertions;
+generic warning assertions can depend on warning verbosity/throttling. Browser
+checks are appropriate for DT draw/scroll/edit behavior that headless tests
+cannot measure. Never require production keys for new cryptography tests.
+
+The package-check CI tests multiple R/OS combinations. The existing pkgdown
+workflow builds the documentation site and publishes it to GitHub Pages. Roxygen
+owns the generated NAMESPACE and Rd pages; guide Rmd sources own the articles.
+No running Shiny app, production keys, or remote data are needed to build these
+guides.
+
+## Legacy APIs and future extensions
+
+Deprecated compatibility entry points include `createExampleGraph()`,
+`asGraphList()`, `createGraphFromUpload()` (internal), `updateGraph()`, the old
+download/import modules, `check_signature_validity()`, and
+`mod_network_sidebar_ui()`. The private/public key parameters on
+`mod_network_server()` are also legacy. Their implementations remain available;
+new app work should use tracer_table APIs and the shared sidebar instead.
+
+Future features should preserve these rules:
+
+- Keep current_table authoritative; derive graphs instead of synchronizing copies.
+- Preserve incomplete editing states and the distinction between errors/warnings.
+- Route whole-table replacements through the root confirmation gate.
+- Keep Save checkpoints independent from downloads and imports.
+- Store optional names only in the data frame.
+- Preserve ID mapping and visually blank missing labels.
+- Keep completed import counters and isolated payload reads paired.
+- Keep signature bytes/versioning explicit; never reinterpret failed signed input.
+- Add authenticated identity metadata only through a deliberate new trust/format design.
+
+Nested capsules, hierarchy navigation, permanent storage, templates, multi-network
+linking, revision history, configurable appearance, and authenticated authorship
+remain future work. The historical `inst/scripts/tasks.md` is a roadmap, not
+evidence that those features are implemented. No PEITHO import or AI integration
+is part of the current production app.

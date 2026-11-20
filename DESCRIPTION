@@ -1,7 +1,7 @@
 Package: TraceR
 Title: An app to create network-like representations
-Version: 26.11.1
-Date: 2026-11-1
+Version: 26.11.2
+Date: 2026-11-20
 Authors@R: c(
     person("Ricardo", "Fernandes", email = "ldv1452@gmail.com", role = c("aut")),
     person("Lukas", "Fuchs", email = "lukas.fuchs@inwt-statistics.de", role = c("aut")),
@@ -13,10 +13,13 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Suggests:
     htmltools,
+    knitr,
     PEITHO,
+    rmarkdown,
     testthat (>= 3.0.0),
     withr
 Config/testthat/edition: 3
+VignetteBuilder: knitr
 Imports:
     DataTools (>= 26.08.2),
     DiagrammeR,
