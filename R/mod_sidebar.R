@@ -95,6 +95,7 @@ mod_sidebar_server <- function(
     if (is.null(current_network)) current_network <- reactive(new_tracer_network())
     if (is.null(selected_path)) selected_path <- reactive("")
     tree_selection <- reactiveVal(NULL)
+    tree_selection_request <- reactiveVal(0L)
     tree_refresh <- reactiveVal(0L)
 
     DataTools::downloadModelServer(
@@ -184,7 +185,9 @@ mod_sidebar_server <- function(
           (nzchar(path) && !path %in% names(current_network()$tables))) {
         return()
       }
+      if (identical(path, selected_path())) return()
       tree_selection(path)
+      tree_selection_request(isolate(tree_selection_request()) + 1L)
       tree_refresh(isolate(tree_refresh()) + 1L)
     })
 
@@ -317,7 +320,10 @@ mod_sidebar_server <- function(
       table_import = table_import,
       table_import_request_id = reactive(table_import_request()),
       uploaded_session = uploaded_session,
-      capsule_selection = reactive(tree_selection())
+      capsule_selection = reactive({
+        tree_selection_request()
+        tree_selection()
+      })
     )
   })
 }

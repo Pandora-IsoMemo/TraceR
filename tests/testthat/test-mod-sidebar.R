@@ -158,6 +158,50 @@ test_that("whole-network ZIP actions replace or nest a hierarchy", {
   })
 })
 
+test_that("tree refreshes do not overwrite navigation into an imported capsule", {
+  example <- createExampleTracerTable()
+  network <- new_tracer_network(
+    example,
+    stats::setNames(list(new_tracer_table()), "C1")
+  )
+  archive <- tempfile(fileext = ".zip")
+  on.exit(unlink(archive), add = TRUE)
+  tracer_network_to_zip(network, archive)
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    session$flushReact()
+    session$setInputs(`sidebar-network_zip_file` = list(datapath = archive))
+    session$setInputs(`sidebar-import_capsule_id` = "Imported")
+    session$setInputs(`sidebar-import_network_as_capsule` = 1L)
+
+    choose_imported <- list(Root = structure(
+      list(Imported = structure(list(C1 = ""), stselected = TRUE)),
+      stselected = FALSE
+    ))
+    root_echo <- list(Root = structure(
+      list(Imported = list(C1 = "")),
+      stselected = TRUE
+    ))
+    session$setInputs(`sidebar-capsule_tree` = choose_imported)
+    expect_identical(pending_navigation(), "Imported")
+
+    session$setInputs(`sidebar-capsule_tree` = root_echo)
+    expect_identical(pending_navigation(), "Imported")
+    session$setInputs(cancel_navigation = 1L)
+    expect_identical(selected_path(), "")
+    expect_null(pending_navigation())
+
+    session$setInputs(`sidebar-capsule_tree` = choose_imported)
+    expect_identical(pending_navigation(), "Imported")
+    session$setInputs(`sidebar-capsule_tree` = root_echo)
+    session$setInputs(save_navigation = 1L)
+    expect_identical(selected_path(), "Imported")
+    expect_true(tracer_table_data_identical(current_table(), example))
+    expect_identical(get_tracer_table(working_network(), "Imported/C1"), new_tracer_table())
+  })
+})
+
 test_that("table imports emit once per completed request, including identical payloads", {
   shiny::testServer(
     mod_sidebar_server,
