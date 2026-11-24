@@ -19,6 +19,7 @@ Session downloads store the shared \code{tracer_table} as data and capture the
 root Shiny inputs. Session imports are returned to the application server,
 which validates and installs the table before restoring those inputs. The
 Save checkpoint is session-local; Reset restores the last checkpoint after
-confirmation. Network-table JSON and whole-network ZIP import/export are
-separate from DataTools session import/export.
+confirmation. Whole-network ZIP import/export is separate from DataTools
+session import/export. Network-table JSON import/export lives in the table
+module.
 }

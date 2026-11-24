@@ -7,6 +7,7 @@
 - Updated README onboarding, organized the pkgdown guides/reference, and marked the old task checklist as historical.
 - Added hierarchical capsule navigation, structural checkpoints, and whole-network ZIP import/export.
 - Added a three-step analysis workflow inside the example's Analyze data capsule.
+- Moved network-table JSON download (signed and unsigned) and import from the sidebar to below the table in the Network Table tab.
 
 # TraceR 26.11.1
 

@@ -152,7 +152,7 @@ optional column, then Reset and confirm. The saved example is restored in full.
 
 ## Download and import network-table JSON
 
-Use the table download in the sidebar's **Network Table** section. It is labeled
+Use the **Table JSON** controls below the table in the Network Table tab. It is labeled
 **Download** when no private key is loaded, or **Download JSON** alongside
 **Download Signed JSON** when a private key is available.
 

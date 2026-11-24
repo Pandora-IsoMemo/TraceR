@@ -36,12 +36,15 @@ shinyServer(function(input, output, session) {
     current_table = current_table,
     root_inputs = input,
     unsaved_changes = unsaved_changes,
-    private_key = private_key,
     current_network = reactive(working_network()),
     selected_path = reactive(selected_path())
   )
 
-  table_module <- mod_table_server("table", current_table = current_table)
+  table_module <- mod_table_server(
+    "table",
+    current_table = current_table,
+    private_key = private_key
+  )
 
   network_from_root_table <- function(table) {
     network <- new_tracer_network()
@@ -500,8 +503,8 @@ shinyServer(function(input, output, session) {
     removeModal()
   }, ignoreInit = TRUE)
 
-  observeEvent(sidebar$table_import(), {
-    import_request <- sidebar$table_import()
+  observeEvent(table_module$table_import(), {
+    import_request <- table_module$table_import()
     uploaded <- import_request$data
     req(length(uploaded) > 0L)
     imported <- uploaded[[1L]]

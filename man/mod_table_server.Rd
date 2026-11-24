@@ -4,18 +4,23 @@
 \alias{mod_table_server}
 \title{Table module server}
 \usage{
-mod_table_server(id, current_table)
+mod_table_server(id, current_table, private_key = NULL)
 }
 \arguments{
 \item{id}{Module ID}
 
 \item{current_table}{Reactive value containing the shared \code{tracer_table}}
+
+\item{private_key}{Optional RSA private key for signed table downloads}
 }
 \value{
-\code{NULL}, invisibly
+A list with \code{scroll_to_top()}, the \code{table_import} reactive, and the
+monotonically increasing \code{table_import_request_id} used to distinguish
+repeated imports.
 }
 \description{
 Cell edits and row operations update the supplied shared table reactive.
 Invalid intermediate content is retained and reported for the Network
-module to handle.
+module to handle. The module also provides network-table JSON download
+(signed when a private key is supplied) and import.
 }

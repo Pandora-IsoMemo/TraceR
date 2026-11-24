@@ -44,8 +44,8 @@ Sidebar actions/import requests --> Root server coordination
 | Owner | Source | Responsibility |
 |-------|--------|----------------|
 | Root UI/server | `inst/app/ui.R`, `inst/app/server.R` | Module wiring, keys, checkpoints, replacement confirmation, JSON verification, session restore. |
-| Shared sidebar | `R/mod_sidebar.R` | Controls, download handlers, DataTools import modules, action/import reactives. |
-| Table module | `R/mod_table.R` | Editable DT, row operations, optional-column renaming, table feedback and scroll behavior. |
+| Shared sidebar | `R/mod_sidebar.R` | Controls, network ZIP handlers, session import/download, action reactives. |
+| Table module | `R/mod_table.R` | Editable DT, row operations, optional-column renaming, table feedback, scroll behavior, table JSON download/import. |
 | Network module | `R/mod_network.R` | Reactive graph derivation, render availability, click feedback, pan/zoom. |
 | Table model | `R/04_tracerTable.R` | Schema constructor, validation, value-based comparison. |
 | Conversion | `R/05_graphTables.R` | Mapping TraceR rows into styled DiagrammeR node/edge tables. |
@@ -138,7 +138,7 @@ before scrolling to the appended row. This avoids sorting placing a blank row
 at the top or a filter hiding it. Whole-table replacements request top scrolling
 through the Table module's returned `scroll_to_top()` function.
 
-The sidebar wraps the DataTools JSON import result as
+The table module wraps the DataTools JSON import result as
 `list(request_id = counter, data = imported)`. Each nested Accept event registers
 a one-time `session$onFlushed()` callback that increments the counter after
 DataTools publishes its result. One-time applies to each registration, not the
@@ -289,7 +289,7 @@ pkgdown::build_site()
 | `test-tracer-table.R` | Eleven-column schema, incomplete states, IDs, edge warnings/errors. |
 | `test-graph-tables-tracer-table.R` | Identity mapping, fixed appearance, missing labels, strict conversion. |
 | `test-mod-table.R` | Shared edits, row operations, optional-column names. |
-| `test-mod-sidebar.R` | Controls, completed import events, Load confirmation, independent key loading. |
+| `test-mod-sidebar.R` | Controls, Load confirmation, independent key loading. |
 | `test-tracer-table-json.R` | JSON/null/order round-trips, RSA-SHA256 verification, tamper detection. |
 | `test-mod-network.R` | Derived graph behavior and retained legacy APIs/deprecation signals. |
 

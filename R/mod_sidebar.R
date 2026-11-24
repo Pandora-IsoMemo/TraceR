@@ -6,8 +6,9 @@
 #' root Shiny inputs. Session imports are returned to the application server,
 #' which validates and installs the table before restoring those inputs. The
 #' Save checkpoint is session-local; Reset restores the last checkpoint after
-#' confirmation. Network-table JSON and whole-network ZIP import/export are
-#' separate from DataTools session import/export.
+#' confirmation. Whole-network ZIP import/export is separate from DataTools
+#' session import/export. Network-table JSON import/export lives in the table
+#' module.
 #'
 #' @param id Module ID
 #' @return Shared application controls
@@ -16,26 +17,16 @@ mod_sidebar_ui <- function(id) {
   ns <- NS(id)
 
   tagList(
-    tags$h3("Network Table"),
+    tags$h3("Network"),
     tags$br(),
-    actionButton(ns("generate_example"), "Load Example"),
+    actionButton(ns("generate_example"), "Load Example", width = "100%"),
     tags$br(), tags$br(),
-    actionButton(ns("empty_network"), "Load Empty"),
+    actionButton(ns("empty_network"), "Load Empty", width = "100%"),
     tags$br(), tags$br(),
-    actionButton(ns("save_table"), "Save"),
-    actionButton(ns("reset_table"), "Reset"),
+    actionButton(ns("save_table"), "Save", width = "45%"),
+    actionButton(ns("reset_table"), "Reset", width = "45%"),
     uiOutput(ns("unsaved_status")),
     tags$hr(),
-    tags$h3("Capsules"),
-    textInput(ns("new_capsule_id"), "New capsule ID"),
-    actionButton(ns("add_capsule"), "Add capsule"),
-    tags$br(), tags$br(),
-    textInput(ns("rename_capsule_id"), "Rename selected capsule to"),
-    actionButton(ns("rename_capsule"), "Rename selected capsule"),
-    tags$br(), tags$br(),
-    actionButton(ns("delete_capsule"), "Delete selected capsule", class = "btn-warning"),
-    tags$hr(),
-    textOutput(ns("selected_path")),
     tags$h3("Network Tree"),
     shinyTree::shinyTree(
       ns("capsule_tree"),
@@ -44,21 +35,31 @@ mod_sidebar_ui <- function(id) {
       multiple = FALSE
     ),
     tags$hr(),
-    tags$h4("Network Tree ZIP"),
-    downloadButton(ns("download_network"), "Download Network"),
-    fileInput(ns("network_zip_file"), "Network ZIP file", accept = ".zip"),
-    actionButton(ns("import_network"), "Import Network ZIP"),
-    textInput(ns("import_capsule_id"), "Import as capsule ID"),
-    actionButton(ns("import_network_as_capsule"), "Import ZIP as capsule"),
+    tags$h3("Capsules"),
+    tags$b("Current:"),
+    textOutput(ns("selected_path")),
+    tags$br(),
+    textInput(ns("new_capsule_id"), "New capsule ID"),
+    actionButton(ns("add_capsule"), "Add into current", width = "100%"),
+    tags$br(), tags$br(),
+    textInput(ns("rename_capsule_id"), "Rename capsule to"),
+    actionButton(ns("rename_capsule"), "Rename current", width = "100%"),
+    tags$br(), tags$br(),
+    actionButton(ns("delete_capsule"), "Delete current capsule", class = "btn-warning", width = "100%"),
     tags$hr(),
-    uiOutput(ns("table_download_controls")),
-    DataTools::importUI(ns("table_import"), label = "Import"),
+    tags$h4("Network Tree ZIP"),
+    downloadButton(ns("download_network"), "Download Network", width = "100%"),
+    fileInput(ns("network_zip_file"), "Network ZIP file", accept = ".zip", width = "100%"),
+    actionButton(ns("import_network"), "Import Network", width = "100%"),
+    textInput(ns("import_capsule_id"), "Import as capsule ID"),
+    actionButton(ns("import_network_as_capsule"), "Import ZIP as capsule", width = "100%"),
     tags$hr(),
     tags$h3("Session"),
     tags$br(),
     DataTools::downloadModelUI(
       id = ns("session_download"),
-      label = "Download Session"
+      label = "Download Session",
+      width = "100%"
     ),
     DataTools::importUI(ns("session_import"), label = "Import Session")
   )
@@ -74,19 +75,16 @@ mod_sidebar_ui <- function(id) {
 #' @param current_table Reactive value containing the shared `tracer_table`
 #' @param root_inputs Root Shiny input object for session persistence
 #' @param unsaved_changes Reactive logical indicating whether the table is dirty
-#' @param private_key Optional RSA private key for signed table downloads
 #' @param current_network Reactive value containing the `tracer_network`
 #' @param selected_path Reactive value containing the selected capsule path
-#' @return A list of sidebar actions for capsule management, table and network
-#'   import/export, and session persistence. It includes the monotonically
-#'   increasing `table_import_request_id` used to distinguish repeated imports.
+#' @return A list of sidebar actions for capsule management, network ZIP
+#'   import/export, and session persistence.
 #' @export
 mod_sidebar_server <- function(
   id,
   current_table,
   root_inputs,
   unsaved_changes = NULL,
-  private_key = NULL,
   current_network = NULL,
   selected_path = NULL
 ) {
@@ -191,63 +189,6 @@ mod_sidebar_server <- function(
       tree_refresh(isolate(tree_refresh()) + 1L)
     })
 
-    output$table_download_controls <- renderUI({
-      if (is.null(private_key)) {
-        return(downloadButton(session$ns("download_table"), "Download"))
-      }
-
-      tagList(
-        downloadButton(session$ns("download_table"), "Download JSON"),
-        tags$br(), tags$br(),
-        downloadButton(session$ns("download_signed_table"), "Download Signed JSON"),
-        tags$div(
-          class = "alert alert-warning",
-          role = "alert",
-          style = "margin-top: 10px; padding: 10px; font-size: 13px;",
-          tags$strong("Experimental: testing only"),
-          tags$br(),
-          "Future versions may not verify current signed files. Keep an unsigned JSON copy."
-        ),
-        tags$br()
-      )
-    })
-
-    table_download_content <- function(file, signed = FALSE) {
-      table <- current_table()
-      validation <- validate_tracer_table(table)
-      if (nrow(validation$errors) > 0L) {
-        shiny::showNotification(
-          paste(c("Cannot download an invalid network table:", validation$errors$message), collapse = "\n"),
-          type = "error",
-          duration = NULL
-        )
-        stop("Network table has validation errors.", call. = FALSE)
-      }
-      if (nrow(validation$warnings) > 0L) {
-        shiny::showNotification(
-          paste(c("Unresolved edge references:", validation$warnings$message), collapse = "\n"),
-          type = "warning",
-          duration = NULL
-        )
-      }
-
-      json <- if (signed) {
-        tracer_table_to_signed_json(table, private_key)
-      } else {
-        tracer_table_to_json(table)
-      }
-      writeBin(charToRaw(enc2utf8(json)), file)
-    }
-
-    output$download_table <- downloadHandler(
-      filename = function() "data.json",
-      content = function(file) table_download_content(file)
-    )
-    output$download_signed_table <- downloadHandler(
-      filename = function() "data-signed.json",
-      content = function(file) table_download_content(file, signed = TRUE)
-    )
-
     output$download_network <- downloadHandler(
       filename = function() "network.zip",
       content = function(file) {
@@ -270,28 +211,6 @@ mod_sidebar_server <- function(
         tracer_network_to_zip(current_network(), file)
       }
     )
-
-    imported_table_json <- DataTools::importServer(
-      "table_import",
-      title = "Import Network Table",
-      importType = "list",
-      defaultSource = "file",
-      ckanFileTypes = "json",
-      options = DataTools::importOptions(rPackageName = config()[["rPackageName"]])
-    )
-    table_import_request <- reactiveVal(0L)
-    observeEvent(input[["table_import-accept"]], {
-      session$onFlushed(function() {
-        table_import_request(isolate(table_import_request()) + 1L)
-      }, once = TRUE)
-    }, ignoreInit = TRUE)
-    table_import <- reactive({
-      request_id <- table_import_request()
-      req(request_id > 0L)
-      imported <- isolate(imported_table_json())
-      req(length(imported) > 0L)
-      list(request_id = request_id, data = imported)
-    })
 
     uploaded_session <- DataTools::importServer(
       "session_import",
@@ -317,8 +236,6 @@ mod_sidebar_server <- function(
       import_network = reactive(input$import_network),
       import_capsule_id = reactive(input$import_capsule_id),
       import_network_as_capsule = reactive(input$import_network_as_capsule),
-      table_import = table_import,
-      table_import_request_id = reactive(table_import_request()),
       uploaded_session = uploaded_session,
       capsule_selection = reactive({
         tree_selection_request()

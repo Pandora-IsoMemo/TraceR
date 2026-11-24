@@ -17,7 +17,8 @@ test_that("shared sidebar exposes current table and session controls", {
   expect_match(html, 'id="sidebar-network_zip_file"', fixed = TRUE)
   expect_match(html, 'id="sidebar-import_network"', fixed = TRUE)
   expect_match(html, 'id="sidebar-import_network_as_capsule"', fixed = TRUE)
-  expect_match(html, 'id="sidebar-table_import-openPopup"', fixed = TRUE)
+  expect_false(grepl("table_import", html, fixed = TRUE))
+  expect_false(grepl("download_table", html, fixed = TRUE))
   expect_match(html, "Session", fixed = TRUE)
   expect_match(html, "Download Session", fixed = TRUE)
   expect_match(html, "Import Session", fixed = TRUE)
@@ -39,8 +40,7 @@ test_that("shared sidebar server initializes with shared state and root inputs",
         "generate_example", "empty_network", "save_table", "reset_table",
         "add_capsule", "new_capsule_id", "rename_capsule", "rename_capsule_id",
         "delete_capsule", "network_zip_file", "import_network", "import_capsule_id",
-        "import_network_as_capsule", "table_import", "table_import_request_id",
-        "uploaded_session", "capsule_selection"
+        "import_network_as_capsule", "uploaded_session", "capsule_selection"
       ))
       session$setInputs(generate_example = 1)
       expect_equal(session$returned$generate_example(), 1)
@@ -50,16 +50,6 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_equal(session$returned$save_table(), 1)
       session$setInputs(reset_table = 1)
       expect_equal(session$returned$reset_table(), 1)
-      session$setInputs(`table_import-accept` = 1)
-      session$flushReact()
-      expect_equal(session$returned$table_import_request_id(), 1L)
-      session$setInputs(`table_import-accept` = 2)
-      session$flushReact()
-      expect_equal(session$returned$table_import_request_id(), 2L)
-      session$flushReact()
-      expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
-      expect_false(grepl("Download Signed", output$table_download_controls$html, fixed = TRUE))
-      expect_false(grepl("Experimental: testing only", output$table_download_controls$html, fixed = TRUE))
       expect_match(output$unsaved_status$html, "Saved", fixed = TRUE)
     }
   )
@@ -221,71 +211,6 @@ test_that("tree refreshes do not overwrite navigation into an imported capsule",
   })
 })
 
-test_that("table imports emit once per completed request, including identical payloads", {
-  shiny::testServer(
-    mod_sidebar_server,
-    args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
-      root_inputs = shiny::reactiveValues()
-    ),
-    {
-      tracker <- new.env(parent = emptyenv())
-      tracker$events <- list()
-      shiny::observeEvent(session$returned$table_import(), {
-        tracker$events <- append(tracker$events, list(session$returned$table_import()))
-      })
-      session$setInputs(`table_import-accept` = 0L)
-      session$flushReact()
-
-      first_payload <- list(file = list(payload = "first"))
-      imported_table_json(first_payload)
-      session$flushReact()
-      expect_length(tracker$events, 0L)
-
-      session$setInputs(`table_import-accept` = 1L)
-      session$flushReact()
-      expect_length(tracker$events, 1L)
-      expect_identical(tracker$events[[1]], list(request_id = 1L, data = first_payload))
-
-      second_payload <- list(file = list(payload = "second"))
-      imported_table_json(second_payload)
-      session$flushReact()
-      expect_length(tracker$events, 1L)
-
-      session$setInputs(`table_import-accept` = 2L)
-      session$flushReact()
-      expect_length(tracker$events, 2L)
-      expect_identical(tracker$events[[2]], list(request_id = 2L, data = second_payload))
-
-      imported_table_json(second_payload)
-      session$setInputs(`table_import-accept` = 3L)
-      session$flushReact()
-      expect_length(tracker$events, 3L)
-      expect_identical(tracker$events[[3]], list(request_id = 3L, data = second_payload))
-    }
-  )
-})
-
-test_that("signed table download is shown only when a private key is available", {
-  shiny::testServer(
-    mod_sidebar_server,
-    args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
-      root_inputs = shiny::reactiveValues(),
-      private_key = structure(list(), class = "test_private_key")
-    ),
-    {
-      session$flushReact()
-      expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
-      expect_match(output$table_download_controls$html, "Download Signed", fixed = TRUE)
-      expect_match(output$table_download_controls$html, "Experimental: testing only", fixed = TRUE)
-      expect_match(output$table_download_controls$html, "Keep an unsigned JSON copy", fixed = TRUE)
-      expect_match(output$table_download_controls$html, 'class="alert alert-warning"', fixed = TRUE)
-      expect_match(output$table_download_controls$html, "<strong>Experimental: testing only</strong>", fixed = TRUE)
-    }
-  )
-})
-
 test_that("load actions confirm dirty replacements without changing the checkpoint", {
   actions <- list(
     generate_example = shiny::reactiveVal(0L),
@@ -301,7 +226,6 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     import_network = shiny::reactiveVal(0L),
     import_capsule_id = shiny::reactiveVal(""),
     import_network_as_capsule = shiny::reactiveVal(0L),
-    table_import = shiny::reactiveVal(NULL),
     uploaded_session = shiny::reactiveVal(NULL),
     capsule_selection = shiny::reactiveVal(NULL)
   )

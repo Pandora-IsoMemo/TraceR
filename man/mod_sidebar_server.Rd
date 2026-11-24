@@ -9,7 +9,6 @@ mod_sidebar_server(
   current_table,
   root_inputs,
   unsaved_changes = NULL,
-  private_key = NULL,
   current_network = NULL,
   selected_path = NULL
 )
@@ -23,16 +22,13 @@ mod_sidebar_server(
 
 \item{unsaved_changes}{Reactive logical indicating whether the table is dirty}
 
-\item{private_key}{Optional RSA private key for signed table downloads}
-
 \item{current_network}{Reactive value containing the \code{tracer_network}}
 
 \item{selected_path}{Reactive value containing the selected capsule path}
 }
 \value{
-A list of sidebar actions for capsule management, table and network
-import/export, and session persistence. It includes the monotonically
-increasing \code{table_import_request_id} used to distinguish repeated imports.
+A list of sidebar actions for capsule management, network ZIP
+import/export, and session persistence.
 }
 \description{
 The sidebar does not own network data. It renders the supplied hierarchy
