@@ -153,6 +153,13 @@ mod_sidebar_server <- function(
       list(Root = root)
     })
 
+    observe({
+      at_root <- identical(selected_path(), "")
+      for (control in c("rename_capsule_id", "rename_capsule", "delete_capsule")) {
+        shinyjs::toggleState(control, condition = !at_root)
+      }
+    })
+
     output$selected_path <- renderText({
       path <- selected_path()
       parts <- if (identical(path, "")) character() else strsplit(path, "/", fixed = TRUE)[[1]]

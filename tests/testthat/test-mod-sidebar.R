@@ -1,7 +1,7 @@
 test_that("shared sidebar exposes current table and session controls", {
   html <- htmltools::renderTags(mod_sidebar_ui("sidebar"))$html
 
-  expect_match(html, "Network Table", fixed = TRUE)
+  expect_match(html, "<h3>Network</h3>", fixed = TRUE)
   expect_match(html, 'id="sidebar-generate_example"', fixed = TRUE)
   expect_match(html, "Load Example", fixed = TRUE)
   expect_match(html, 'id="sidebar-empty_network"', fixed = TRUE)
@@ -309,4 +309,20 @@ test_that("keys are loaded independently in the application server", {
     expect_identical(private_key, test_private_key)
     expect_null(public_key)
   })
+})
+test_that("rename and delete controls are disabled at the root", {
+  path <- shiny::reactiveVal("")
+  shiny::testServer(
+    mod_sidebar_server,
+    args = list(
+      current_table = shiny::reactiveVal(new_tracer_table()),
+      root_inputs = shiny::reactiveValues(),
+      selected_path = path
+    ),
+    {
+      expect_no_error(session$flushReact())
+      path("A")
+      expect_no_error(session$flushReact())
+    }
+  )
 })
