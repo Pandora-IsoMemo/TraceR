@@ -5,7 +5,10 @@ options(shiny.maxRequestSize = 110 * 1024^2)
 
 tagList(
   navbarPage(
-    title = paste("TraceR", packageVersion("TraceR")),
+    title = shinyTools::headerTitle(
+      pkg_name = "TraceR",
+      url_docu = "https://pandora-isomemo.github.io/TraceR/"
+    ),
     theme = shinythemes::shinytheme("flatly"),
     position = "fixed-top",
     collapsible = TRUE,
