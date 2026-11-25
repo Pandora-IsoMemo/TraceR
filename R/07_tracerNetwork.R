@@ -541,6 +541,694 @@ remove_tracer_capsule <- function(network, path, parent_table = NULL) {
   new_tracer_network(updated$root, updated$tables)
 }
 
+.tracer_collapse_empty_report <- function() {
+  list(
+    promoted_ids = data.frame(
+      old_id = character(),
+      new_id = character(),
+      type = character(),
+      stringsAsFactors = FALSE
+    ),
+    updated_paths = data.frame(
+      old_path = character(),
+      new_path = character(),
+      stringsAsFactors = FALSE
+    ),
+    generated_edges = data.frame(
+      id = character(),
+      from = character(),
+      to = character(),
+      original_edges = character(),
+      stringsAsFactors = FALSE
+    ),
+    updated_edges = data.frame(
+      id = character(),
+      old_from = character(),
+      old_to = character(),
+      from = character(),
+      to = character(),
+      stringsAsFactors = FALSE
+    ),
+    removed_edges = data.frame(
+      id = character(),
+      from = character(),
+      to = character(),
+      stringsAsFactors = FALSE
+    ),
+    metadata_conflicts = data.frame(
+      generated_edge = character(),
+      original_edges = character(),
+      field = character(),
+      original_value_1 = character(),
+      original_value_2 = character(),
+      result = character(),
+      stringsAsFactors = FALSE
+    ),
+    edge_changes = data.frame(
+      action = character(),
+      original_edges = character(),
+      resulting_edge = character(),
+      original_connections = character(),
+      resulting_connection = character(),
+      stringsAsFactors = FALSE
+    ),
+    summary = list(
+      promoted_nodes = 0L,
+      promoted_internal_edges = 0L,
+      promoted_capsules = 0L,
+      generated_edges = 0L,
+      updated_edges = 0L,
+      removed_edges = 0L,
+      metadata_conflicts = 0L
+    )
+  )
+}
+
+.tracer_collapse_result <- function(
+  success,
+  network = NULL,
+  issues = .tracer_network_issue()[FALSE, , drop = FALSE],
+  report = .tracer_collapse_empty_report(),
+  path = ""
+) {
+  c(
+    list(
+      success = success,
+      network = network,
+      issues = issues,
+      path = path
+    ),
+    report
+  )
+}
+
+#' Collapse a capsule into its parent table
+#'
+#' Promotes the selected capsule's immediate table by one hierarchy level,
+#' prefixes promoted IDs, updates local edge references and descendant paths,
+#' and rewrites parent-level edges connected to the capsule. The input network
+#' is never modified. Expected validation failures are returned as structured
+#' issues and leave `network` as `NULL`. The parent and capsule tables must
+#' use the same five optional column names. A successful result includes
+#' detailed edge changes and metadata conflicts for the application to report.
+#'
+#' @param network A `tracer_network`.
+#' @param path Non-root capsule path to collapse.
+#' @return A list with `success`, `network`, `issues`, `path`, `promoted_ids`,
+#'   `updated_paths`, `generated_edges`, `updated_edges`, `removed_edges`,
+#'   `metadata_conflicts`, `edge_changes`, and `summary`. On failure,
+#'   `network` is `NULL` and `issues` describes the blocking problems.
+#' @export
+collapse_tracer_capsule <- function(network, path) {
+  report <- .tracer_collapse_empty_report()
+  issues <- .tracer_network_issue()[FALSE, , drop = FALSE]
+  add_issue <- function(issue_path, row, field, message) {
+    issues <<- rbind(
+      issues,
+      .tracer_network_issue(issue_path, row, field, message)
+    )
+  }
+  fail <- function() {
+    .tracer_collapse_result(FALSE, issues = issues, report = report, path = path)
+  }
+
+  if (!inherits(network, "tracer_network") ||
+      !is.list(network) || !identical(names(network), c("root", "tables")) ||
+      !is.list(network$tables)) {
+    add_issue("", NA_integer_, "network", "A valid tracer_network is required.")
+    return(fail())
+  }
+  if (!.tracer_network_valid_path(path, allow_root = FALSE)) {
+    add_issue(path, NA_integer_, "path", "Select a valid non-root capsule path.")
+    return(fail())
+  }
+  if (!path %in% names(network$tables)) {
+    add_issue(path, NA_integer_, "path", paste0("No capsule table exists at '", path, "'."))
+    return(fail())
+  }
+
+  structure_issues <- .tracer_network_structure_issues(network)
+  if (nrow(structure_issues) > 0L) {
+    issues <- rbind(issues, structure_issues)
+    return(fail())
+  }
+
+  parent_path <- .tracer_network_parent_path(path)
+  path_parts <- strsplit(path, "/", fixed = TRUE)[[1]]
+  capsule_id <- path_parts[[length(path_parts)]]
+  parent <- get_tracer_table(network, parent_path)
+  child <- get_tracer_table(network, path)
+  parent_validation <- validate_tracer_table(parent)
+  child_validation <- validate_tracer_table(child)
+
+  for (table_validation in list(
+    list(path = parent_path, result = parent_validation),
+    list(path = path, result = child_validation)
+  )) {
+    if (nrow(table_validation$result$errors) > 0L) {
+      issues <- rbind(
+        issues,
+        .tracer_network_issue_rows(
+          table_validation$path,
+          table_validation$result$errors
+        )
+      )
+    }
+  }
+  if (nrow(issues) > 0L) return(fail())
+
+  if (nrow(child_validation$warnings) > 0L) {
+    for (index in seq_len(nrow(child_validation$warnings))) {
+      warning <- child_validation$warnings[index, ]
+      add_issue(
+        path,
+        warning$row,
+        warning$field,
+        paste0(
+          warning$message,
+          " Correct this internal reference before collapsing."
+        )
+      )
+    }
+  }
+
+  required_columns <- .tracer_table_required_columns
+  parent_optional <- setdiff(names(parent$data), required_columns)
+  child_optional <- setdiff(names(child$data), required_columns)
+  if (!setequal(parent_optional, child_optional)) {
+    add_issue(
+      path,
+      NA_integer_,
+      "columns",
+      paste0(
+        "The parent and capsule tables use different optional column names. ",
+        "Rename the optional columns so both tables use the same five names before collapsing."
+      )
+    )
+  }
+  if (nrow(issues) > 0L) return(fail())
+
+  parent_data <- parent$data
+  child_data <- child$data[, names(parent_data), drop = FALSE]
+  capsule_rows <- which(
+    !.tracer_table_is_missing(parent_data$ID) &
+      parent_data$ID == capsule_id &
+      !is.na(parent_data$Type) &
+      parent_data$Type == "capsule"
+  )
+  if (length(capsule_rows) != 1L) {
+    add_issue(
+      parent_path,
+      NA_integer_,
+      "ID",
+      paste0("Capsule '", capsule_id, "' must occur exactly once in its parent table.")
+    )
+    return(fail())
+  }
+  capsule_row <- capsule_rows[[1L]]
+
+  child_ids <- child_data$ID
+  mapped_rows <- which(!.tracer_table_is_missing(child_ids))
+  promoted_ids <- if (length(mapped_rows) == 0L) {
+    character()
+  } else {
+    paste0(capsule_id, "_", child_ids[mapped_rows])
+  }
+  id_map <- stats::setNames(promoted_ids, child_ids[mapped_rows])
+  report$promoted_ids <- data.frame(
+    old_id = child_ids[mapped_rows],
+    new_id = promoted_ids,
+    type = child_data$Type[mapped_rows],
+    stringsAsFactors = FALSE
+  )
+
+  edge_rows <- which(!is.na(child_data$Type) & child_data$Type == "edge")
+  vertex_rows <- which(!is.na(child_data$Type) & child_data$Type %in% c("node", "capsule"))
+  vertices <- child_data$ID[vertex_rows]
+  internal_from <- child_data$From[edge_rows]
+  internal_to <- child_data$To[edge_rows]
+  starts <- vertices[!vertices %in% internal_to]
+  ends <- vertices[!vertices %in% internal_from]
+
+  parent_edge_rows <- which(!is.na(parent_data$Type) & parent_data$Type == "edge")
+  incoming_rows <- parent_edge_rows[parent_data$To[parent_edge_rows] == capsule_id]
+  outgoing_rows <- parent_edge_rows[parent_data$From[parent_edge_rows] == capsule_id]
+  affected_rows <- parent_edge_rows[
+    parent_edge_rows %in% union(incoming_rows, outgoing_rows)
+  ]
+  is_empty <- length(vertex_rows) == 0L && length(edge_rows) == 0L
+  pass_incoming_rows <- incoming_rows[
+    parent_data$From[incoming_rows] != capsule_id
+  ]
+  pass_outgoing_rows <- outgoing_rows[
+    parent_data$To[outgoing_rows] != capsule_id
+  ]
+
+  if (!is_empty && length(incoming_rows) > 0L && length(starts) == 0L) {
+    add_issue(
+      path,
+      NA_integer_,
+      "From",
+      paste0(
+        "Capsule '", path,
+        "' has incoming parent edges but no internal starting element. ",
+        "Affected edges: ", paste(parent_data$ID[incoming_rows], collapse = ", "), ". ",
+        "Add a node or capsule with no incoming internal edge, or remove the incoming connections."
+      )
+    )
+  }
+  if (!is_empty && length(outgoing_rows) > 0L && length(ends) == 0L) {
+    add_issue(
+      path,
+      NA_integer_,
+      "To",
+      paste0(
+        "Capsule '", path,
+        "' has outgoing parent edges but no internal end element. ",
+        "Affected edges: ", paste(parent_data$ID[outgoing_rows], collapse = ", "), ". ",
+        "Add a node or capsule with no outgoing internal edge, or remove the outgoing connections."
+      )
+    )
+  }
+
+  dangling_parent <- parent_validation$warnings
+  if (nrow(dangling_parent) > 0L) {
+    for (index in seq_len(nrow(dangling_parent))) {
+      warning <- dangling_parent[index, ]
+      reference <- parent_data[[warning$field]][warning$row]
+      if (reference %in% id_map) {
+        add_issue(
+          parent_path,
+          warning$row,
+          warning$field,
+          paste0(
+            "Parent edge reference '", reference,
+            "' is currently unresolved and would become resolved by a promoted ID. ",
+            "Correct or remove this dangling reference before collapsing."
+          )
+        )
+      }
+    }
+  }
+  if (nrow(issues) > 0L) return(fail())
+
+  promoted <- child_data
+  if (length(mapped_rows) > 0L) {
+    promoted$ID[mapped_rows] <- unname(id_map[child_ids[mapped_rows]])
+  }
+  for (field in c("From", "To")) {
+    rows <- which(!is.na(promoted$Type) & promoted$Type == "edge")
+    if (length(rows) > 0L) {
+      promoted[[field]][rows] <- unname(id_map[promoted[[field]][rows]])
+    }
+  }
+
+  generated_edges <- report$generated_edges
+  updated_edges <- report$updated_edges
+  removed_edges <- report$removed_edges
+  metadata_conflicts <- report$metadata_conflicts
+  edge_changes <- report$edge_changes
+  parent_result <- parent_data[FALSE, , drop = FALSE]
+  metadata_columns <- setdiff(names(parent_data), c("ID", "From", "To"))
+
+  add_removed_edge <- function(row) {
+    removed_edges <<- rbind(
+      removed_edges,
+      data.frame(
+        id = parent_data$ID[row],
+        from = parent_data$From[row],
+        to = parent_data$To[row],
+        stringsAsFactors = FALSE
+      )
+    )
+    edge_changes <<- rbind(
+      edge_changes,
+      data.frame(
+        action = "Removed",
+        original_edges = parent_data$ID[row],
+        resulting_edge = "",
+        original_connections = paste0(
+          parent_data$ID[row], ": ", parent_data$From[row],
+          " -> ", parent_data$To[row]
+        ),
+        resulting_connection = "",
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+
+  append_generated_edge <- function(
+    row,
+    id,
+    from,
+    to,
+    original_ids,
+    original_connections
+  ) {
+    output <- row
+    output$ID <- id
+    output$From <- from
+    output$To <- to
+    parent_result <<- rbind(parent_result, output)
+    generated_edges <<- rbind(
+      generated_edges,
+      data.frame(
+        id = id,
+        from = from,
+        to = to,
+        original_edges = paste(original_ids, collapse = ", "),
+        stringsAsFactors = FALSE
+      )
+    )
+    edge_changes <<- rbind(
+      edge_changes,
+      data.frame(
+        action = "Generated",
+        original_edges = paste(original_ids, collapse = ", "),
+        resulting_edge = id,
+        original_connections = paste(original_connections, collapse = "; "),
+        resulting_connection = paste0(id, ": ", from, " -> ", to),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+
+  combine_metadata <- function(first, second, generated_id, original_ids, field) {
+    first_missing <- .tracer_table_is_missing(first)
+    second_missing <- .tracer_table_is_missing(second)
+    if (first_missing && second_missing) return("")
+    if (first_missing) return(second)
+    if (second_missing || identical(first, second)) return(first)
+
+    metadata_conflicts <<- rbind(
+      metadata_conflicts,
+      data.frame(
+        generated_edge = generated_id,
+        original_edges = paste(original_ids, collapse = ", "),
+        field = field,
+        original_value_1 = first,
+        original_value_2 = second,
+        result = "",
+        stringsAsFactors = FALSE
+      )
+    )
+    ""
+  }
+
+  for (row in seq_len(nrow(parent_data))) {
+    if (row == capsule_row) {
+      if (nrow(promoted) > 0L) {
+        parent_result <- rbind(parent_result, promoted)
+      }
+      next
+    }
+    if (!row %in% affected_rows) {
+      parent_result <- rbind(parent_result, parent_data[row, , drop = FALSE])
+      next
+    }
+
+    old_id <- parent_data$ID[row]
+    old_from <- parent_data$From[row]
+    old_to <- parent_data$To[row]
+    if (is_empty) {
+      if (old_from == capsule_id && old_to == capsule_id) {
+        add_removed_edge(row)
+        next
+      }
+      add_removed_edge(row)
+      next
+    }
+
+    from_ids <- if (old_from == capsule_id) unname(id_map[ends]) else old_from
+    to_ids <- if (old_to == capsule_id) unname(id_map[starts]) else old_to
+    combinations <- data.frame(
+      from = rep(from_ids, each = length(to_ids)),
+      to = rep(to_ids, times = length(from_ids)),
+      stringsAsFactors = FALSE
+    )
+    if (nrow(combinations) == 1L) {
+      output <- parent_data[row, , drop = FALSE]
+      output$From <- combinations$from[[1L]]
+      output$To <- combinations$to[[1L]]
+      parent_result <- rbind(parent_result, output)
+      updated_edges <- rbind(
+        updated_edges,
+        data.frame(
+          id = old_id,
+          old_from = old_from,
+          old_to = old_to,
+          from = output$From,
+          to = output$To,
+          stringsAsFactors = FALSE
+        )
+      )
+      edge_changes <- rbind(
+        edge_changes,
+        data.frame(
+          action = "Updated",
+          original_edges = old_id,
+          resulting_edge = old_id,
+          original_connections = paste0(old_id, ": ", old_from, " -> ", old_to),
+          resulting_connection = paste0(
+            old_id, ": ", output$From, " -> ", output$To
+          ),
+          stringsAsFactors = FALSE
+        )
+      )
+    } else {
+      add_removed_edge(row)
+      for (index in seq_len(nrow(combinations))) {
+        append_generated_edge(
+          parent_data[row, , drop = FALSE],
+          paste0(old_id, "_", index),
+          combinations$from[[index]],
+          combinations$to[[index]],
+          old_id,
+          paste0(old_id, ": ", old_from, " -> ", old_to)
+        )
+      }
+    }
+  }
+
+  if (is_empty &&
+      length(pass_incoming_rows) > 0L &&
+      length(pass_outgoing_rows) > 0L) {
+    parent_result <- parent_data[FALSE, , drop = FALSE]
+    generated_edges <- report$generated_edges
+    updated_edges <- report$updated_edges
+    removed_edges <- report$removed_edges
+    metadata_conflicts <- report$metadata_conflicts
+    edge_changes <- report$edge_changes
+
+    for (row in seq_len(nrow(parent_data))) {
+      if (row == capsule_row) next
+      if (!row %in% affected_rows) {
+        parent_result <- rbind(parent_result, parent_data[row, , drop = FALSE])
+      } else {
+        add_removed_edge(row)
+      }
+      if (row %in% pass_incoming_rows) {
+        for (outgoing_row in pass_outgoing_rows) {
+          generated_id <- paste(
+            parent_data$ID[row],
+            parent_data$ID[outgoing_row],
+            sep = "_"
+          )
+          from <- parent_data$From[row]
+          to <- parent_data$To[outgoing_row]
+          output <- parent_data[row, , drop = FALSE]
+          output$ID <- generated_id
+          output$From <- from
+          output$To <- to
+          original_ids <- c(parent_data$ID[row], parent_data$ID[outgoing_row])
+          for (field in metadata_columns) {
+            output[[field]] <- combine_metadata(
+              parent_data[[field]][row],
+              parent_data[[field]][outgoing_row],
+              generated_id,
+              original_ids,
+              field
+            )
+          }
+          append_generated_edge(
+            output,
+            generated_id,
+            from,
+            to,
+            original_ids,
+            c(
+              paste0(
+                parent_data$ID[row], ": ", parent_data$From[row],
+                " -> ", parent_data$To[row]
+              ),
+              paste0(
+                parent_data$ID[outgoing_row], ": ",
+                parent_data$From[outgoing_row], " -> ",
+                parent_data$To[outgoing_row]
+              )
+            )
+          )
+        }
+      }
+    }
+  }
+
+  if (length(affected_rows) == 0L && is_empty) {
+    parent_result <- parent_data[-capsule_row, , drop = FALSE]
+  }
+
+  candidate_parent <- new_tracer_table(parent_result)
+  updated <- network
+  if (identical(parent_path, "")) {
+    updated$root <- candidate_parent
+  } else {
+    updated$tables[[parent_path]] <- candidate_parent
+  }
+
+  old_descendants <- names(network$tables)[
+    names(network$tables) == path |
+      startsWith(names(network$tables), paste0(path, "/"))
+  ]
+  moved_old_paths <- setdiff(old_descendants, path)
+  moved_new_paths <- character(length(moved_old_paths))
+  for (index in seq_along(moved_old_paths)) {
+    relative <- substring(moved_old_paths[[index]], nchar(path) + 2L)
+    relative_parts <- strsplit(relative, "/", fixed = TRUE)[[1]]
+    new_first_id <- paste0(capsule_id, "_", relative_parts[[1L]])
+    new_relative <- paste(
+      c(new_first_id, relative_parts[-1L]),
+      collapse = "/"
+    )
+    moved_new_paths[[index]] <- if (identical(parent_path, "")) {
+      new_relative
+    } else {
+      paste(parent_path, new_relative, sep = "/")
+    }
+    report$updated_paths <- rbind(
+      report$updated_paths,
+      data.frame(
+        old_path = moved_old_paths[[index]],
+        new_path = moved_new_paths[[index]],
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+
+  unaffected_tables <- updated$tables[!names(updated$tables) %in% old_descendants]
+  collision_paths <- intersect(moved_new_paths, names(unaffected_tables))
+  if (length(collision_paths) > 0L) {
+    for (conflict in collision_paths) {
+      add_issue(
+        conflict,
+        NA_integer_,
+        "path",
+        paste0("Promoting nested capsules would conflict with existing path '", conflict, "'.")
+      )
+    }
+    return(fail())
+  }
+  moved_tables <- network$tables[moved_old_paths]
+  names(moved_tables) <- moved_new_paths
+  updated$tables <- c(unaffected_tables, moved_tables)
+  candidate <- structure(
+    list(root = updated$root, tables = updated$tables),
+    class = "tracer_network"
+  )
+
+  candidate_structure <- .tracer_network_structure_issues(candidate)
+  candidate_content <- validate_tracer_table(candidate_parent)
+  if (nrow(candidate_structure) > 0L) {
+    issues <- rbind(issues, candidate_structure)
+  }
+  if (nrow(candidate_content$errors) > 0L) {
+    issues <- rbind(
+      issues,
+      .tracer_network_issue_rows(parent_path, candidate_content$errors)
+    )
+  }
+  if (nrow(issues) > 0L) return(fail())
+
+  report$generated_edges <- generated_edges
+  report$updated_edges <- updated_edges
+  report$removed_edges <- removed_edges
+  report$metadata_conflicts <- metadata_conflicts
+  report$edge_changes <- edge_changes
+  report$summary <- list(
+    promoted_nodes = sum(report$promoted_ids$type == "node"),
+    promoted_internal_edges = sum(report$promoted_ids$type == "edge"),
+    promoted_capsules = sum(report$promoted_ids$type == "capsule"),
+    generated_edges = nrow(generated_edges),
+    updated_edges = nrow(updated_edges),
+    removed_edges = nrow(removed_edges),
+    metadata_conflicts = nrow(metadata_conflicts)
+  )
+
+  .tracer_collapse_result(
+    TRUE,
+    network = candidate,
+    issues = issues,
+    report = report,
+    path = path
+  )
+}
+
+#' Rebase checkpoint paths after collapsing a capsule
+#'
+#' Promoted descendant capsules retain their previous checkpoint paths until
+#' the parent table is saved.
+#'
+#' @param path_map A working-to-saved path map.
+#' @param old_path The working path of the collapsed capsule.
+#' @param new_network The network after a successful collapse.
+#' @return An updated working-to-saved path map.
+#' @export
+tracer_network_collapse_path_map <- function(path_map, old_path, new_network) {
+  if (!is.data.frame(path_map) ||
+      !identical(names(path_map), c("working_path", "saved_path"))) {
+    stop("'path_map' must have 'working_path' and 'saved_path' columns.", call. = FALSE)
+  }
+
+  parts <- strsplit(old_path, "/", fixed = TRUE)[[1]]
+  capsule_id <- parts[[length(parts)]]
+  parent_path <- .tracer_network_parent_path(old_path)
+  affected <- path_map$working_path[
+    startsWith(path_map$working_path, paste0(old_path, "/"))
+  ]
+  moved <- path_map[match(affected, path_map$working_path), , drop = FALSE]
+  if (nrow(moved) > 0L) {
+    moved$working_path <- vapply(moved$working_path, function(old_child_path) {
+      relative <- substring(old_child_path, nchar(old_path) + 2L)
+      relative_parts <- strsplit(relative, "/", fixed = TRUE)[[1]]
+      new_relative <- paste(
+        c(paste0(capsule_id, "_", relative_parts[[1L]]), relative_parts[-1L]),
+        collapse = "/"
+      )
+      .tracer_network_path_join(parent_path, new_relative)
+    }, character(1))
+  }
+
+  retained <- path_map[
+    !path_map$working_path %in% c(old_path, affected),
+    ,
+    drop = FALSE
+  ]
+  updated <- rbind(retained, moved)
+  paths <- tracer_network_paths(new_network)
+  updated <- updated[updated$working_path %in% paths, , drop = FALSE]
+  missing_paths <- setdiff(paths, updated$working_path)
+  if (length(missing_paths) > 0L) {
+    updated <- rbind(
+      updated,
+      data.frame(
+        working_path = missing_paths,
+        saved_path = rep(NA_character_, length(missing_paths)),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+  updated[match(paths, updated$working_path), , drop = FALSE]
+}
+
 .tracer_network_subtree_paths <- function(network, path) {
   paths <- tracer_network_paths(network)
   if (identical(path, "")) {

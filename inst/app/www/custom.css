@@ -3,3 +3,9 @@ body {
 }
 
 .grViz { overflow: hidden !important; }
+
+.operation-feedback {
+    max-height: 320px;
+    overflow-x: auto;
+    overflow-y: auto;
+}

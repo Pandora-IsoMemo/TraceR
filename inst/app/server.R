@@ -17,6 +17,8 @@ shinyServer(function(input, output, session) {
   pending_replacement <- reactiveVal(NULL)
   pending_navigation <- reactiveVal(NULL)
   pending_capsule_deletion <- reactiveVal(NULL)
+  pending_capsule_collapse <- reactiveVal(NULL)
+  operation_feedback <- reactiveVal(NULL)
   inputs_to_restore <- reactiveVal(NULL)
 
   # Adjust Path to environment
@@ -65,6 +67,127 @@ shinyServer(function(input, output, session) {
     )
   }
 
+  report_table <- function(data, columns) {
+    if (is.null(data) || nrow(data) == 0L) return(NULL)
+    labels <- unname(columns)
+    fields <- names(columns)
+    tags$table(
+      class = "table table-condensed table-striped",
+      tags$thead(tags$tr(lapply(labels, tags$th))),
+      tags$tbody(lapply(seq_len(nrow(data)), function(row) {
+        tags$tr(lapply(fields, function(field) tags$td(data[[field]][row])))
+      }))
+    )
+  }
+
+  output$operation_feedback <- renderUI({
+    feedback <- operation_feedback()
+    if (is.null(feedback)) return(NULL)
+
+    result <- feedback$result
+    title <- if (isTRUE(result$success)) {
+      paste0("Capsule ", feedback$path_label, " collapsed")
+    } else {
+      paste0("Could not collapse capsule ", feedback$path_label)
+    }
+    alert_type <- if (!isTRUE(result$success)) {
+      "danger"
+    } else if (nrow(result$metadata_conflicts) > 0L) {
+      "warning"
+    } else {
+      "info"
+    }
+    summary <- if (isTRUE(result$success)) {
+      counts <- result$summary
+      tags$ul(
+        tags$li(paste(counts$promoted_nodes, "nodes promoted")),
+        tags$li(paste(counts$promoted_internal_edges, "internal edges promoted")),
+        tags$li(paste(counts$promoted_capsules, "nested capsules promoted")),
+        tags$li(paste(counts$generated_edges, "edges generated")),
+        tags$li(paste(counts$updated_edges, "existing edges updated")),
+        tags$li(paste(counts$removed_edges, "edges removed")),
+        if (counts$metadata_conflicts > 0L) {
+          tags$li(paste(counts$metadata_conflicts, "metadata conflicts"))
+        }
+      )
+    } else {
+      tags$p("No changes have been made to the network.")
+    }
+
+    details <- list()
+    if (!isTRUE(result$success) && nrow(result$issues) > 0L) {
+      details <- c(details, list(tags$ul(lapply(seq_len(nrow(result$issues)), function(row) {
+        issue <- result$issues[row, ]
+        location <- paste(c(issue$path, issue$field), collapse = " / ")
+        tags$li(tags$strong(paste0(location, ": ")), issue$message)
+      }))))
+    }
+    if (nrow(result$promoted_ids) > 0L) {
+      details <- c(details, list(tags$details(
+        tags$summary("Promoted IDs"),
+        report_table(
+          result$promoted_ids,
+          c(old_id = "Original ID", new_id = "Promoted ID", type = "Type")
+        )
+      )))
+    }
+    if (nrow(result$updated_paths) > 0L) {
+      details <- c(details, list(tags$details(
+        tags$summary("Updated capsule paths"),
+        report_table(
+          result$updated_paths,
+          c(old_path = "Original path", new_path = "New path")
+        )
+      )))
+    }
+    if (nrow(result$edge_changes) > 0L) {
+      details <- c(details, list(tags$details(
+        tags$summary(paste("Inspect all", nrow(result$edge_changes), "edge changes")),
+        report_table(
+          result$edge_changes,
+          c(
+            action = "Action",
+            original_edges = "Original edge(s)",
+            resulting_edge = "Resulting edge",
+            original_connections = "Original connection(s)",
+            resulting_connection = "Resulting connection"
+          )
+        )
+      )))
+    }
+    if (nrow(result$metadata_conflicts) > 0L) {
+      details <- c(details, list(tags$details(
+        tags$summary("Metadata conflicts"),
+        report_table(
+          result$metadata_conflicts,
+          c(
+            generated_edge = "Generated edge",
+            original_edges = "Original edges",
+            field = "Field",
+            original_value_1 = "First value",
+            original_value_2 = "Second value",
+            result = "Result"
+          )
+        )
+      )))
+    }
+
+    tags$div(
+      class = paste("alert", paste0("alert-", alert_type), "operation-feedback"),
+      role = if (isTRUE(result$success)) "status" else "alert",
+      tags$div(
+        class = "clearfix",
+        actionButton("dismiss_operation_feedback", "Dismiss", class = "close"),
+        tags$strong(title)
+      ),
+      if (isTRUE(result$success)) {
+        tags$p(if (isTRUE(feedback$saved)) "Changes saved." else "Changes are not yet saved.")
+      },
+      summary,
+      if (length(details) > 0L) tags$div(details)
+    )
+  })
+
   save_network_table <- function(path = selected_path()) {
     if (identical(path, selected_path())) {
       working_network(set_tracer_table(working_network(), path, current_table()))
@@ -84,6 +207,13 @@ shinyServer(function(input, output, session) {
     )
     saved_network(checkpoint$network)
     path_map(checkpoint$path_map)
+    current_feedback <- operation_feedback()
+    if (!is.null(current_feedback) &&
+        isTRUE(current_feedback$result$success) &&
+        identical(path, current_feedback$parent_path)) {
+      current_feedback$saved <- TRUE
+      operation_feedback(current_feedback)
+    }
     if (nrow(validation$warnings) > 0L) {
       show_messages(
         "Network table saved with unresolved references",
@@ -105,11 +235,22 @@ shinyServer(function(input, output, session) {
     )
     working_network(reset$network)
     path_map(reset$path_map)
+    current_feedback <- operation_feedback()
+    if (!is.null(current_feedback) &&
+        (identical(path, "") ||
+         identical(path, current_feedback$parent_path) ||
+         startsWith(current_feedback$parent_path, paste0(path, "/")))) {
+      operation_feedback(NULL)
+    }
     if (identical(path, selected_path())) {
       current_table(get_tracer_table(reset$network, path))
     }
     invisible(TRUE)
   }
+
+  observeEvent(input$dismiss_operation_feedback, {
+    operation_feedback(NULL)
+  }, ignoreInit = TRUE)
 
   select_path <- function(path) {
     selected_path(path)
@@ -159,6 +300,7 @@ shinyServer(function(input, output, session) {
     path_map(tracer_network_path_map(replacement$network, saved_network = NULL))
     selected_path("")
     current_table(get_tracer_table(replacement$network, ""))
+    operation_feedback(NULL)
     table_module$scroll_to_top()
     if (!is.null(replacement$inputs)) {
       inputs_to_restore(replacement$inputs)
@@ -418,6 +560,113 @@ shinyServer(function(input, output, session) {
     }, error = function(error) {
       show_messages("Could not rename capsule", conditionMessage(error), "error")
     })
+  }, ignoreInit = TRUE)
+
+  observeEvent(sidebar$collapse_capsule(), {
+    path <- selected_path()
+    if (identical(path, "")) {
+      show_messages("Select a capsule", "The root table cannot be collapsed.", "warning")
+      return()
+    }
+
+    pending_capsule_collapse(path)
+    capsule_label <- paste(
+      c("Root", strsplit(path, "/", fixed = TRUE)[[1]]),
+      collapse = " / "
+    )
+    showModal(modalDialog(
+      title = paste("Collapse capsule", capsule_label, "?"),
+      tags$p("The capsule will be removed and its contents promoted to its parent level."),
+      tags$p("External edges may be redirected, generated, or removed automatically."),
+      tags$p("Metadata stored on the capsule row itself will be removed."),
+      tags$p("The changes will remain unsaved until you select Save."),
+      footer = tagList(
+        actionButton("cancel_capsule_collapse", "Cancel"),
+        actionButton("confirm_capsule_collapse", "Collapse capsule", class = "btn-warning")
+      ),
+      easyClose = FALSE
+    ))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$confirm_capsule_collapse, {
+    path <- pending_capsule_collapse()
+    pending_capsule_collapse(NULL)
+    removeModal()
+    if (is.null(path)) return()
+
+    parent_path <- parent_capsule_path(path)
+    capsule_label <- paste(
+      c("Root", strsplit(path, "/", fixed = TRUE)[[1]]),
+      collapse = " / "
+    )
+    candidate <- working_network()
+    if (identical(path, selected_path()) &&
+        path %in% tracer_network_paths(candidate)) {
+      candidate <- set_tracer_table(candidate, path, current_table())
+    }
+
+    result <- tryCatch(
+      collapse_tracer_capsule(candidate, path),
+      error = function(error) error
+    )
+    if (inherits(result, "error")) {
+      result <- list(
+        success = FALSE,
+        issues = data.frame(
+          path = path,
+          row = NA_integer_,
+          field = "operation",
+          message = paste0(conditionMessage(result), " No changes have been made."),
+          stringsAsFactors = FALSE
+        ),
+        promoted_ids = data.frame(),
+        updated_paths = data.frame(),
+        generated_edges = data.frame(),
+        updated_edges = data.frame(),
+        removed_edges = data.frame(),
+        metadata_conflicts = data.frame(),
+        edge_changes = data.frame(),
+        summary = list(
+          promoted_nodes = 0L,
+          promoted_internal_edges = 0L,
+          promoted_capsules = 0L,
+          generated_edges = 0L,
+          updated_edges = 0L,
+          removed_edges = 0L,
+          metadata_conflicts = 0L
+        )
+      )
+    }
+
+    if (!isTRUE(result$success)) {
+      operation_feedback(list(
+        result = result,
+        path_label = capsule_label,
+        parent_path = parent_path,
+        saved = FALSE
+      ))
+      return()
+    }
+
+    updated_map <- tracer_network_collapse_path_map(
+      path_map(),
+      path,
+      result$network
+    )
+    working_network(result$network)
+    path_map(updated_map)
+    operation_feedback(list(
+      result = result,
+      path_label = capsule_label,
+      parent_path = parent_path,
+      saved = FALSE
+    ))
+    select_path(parent_path)
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$cancel_capsule_collapse, {
+    pending_capsule_collapse(NULL)
+    removeModal()
   }, ignoreInit = TRUE)
 
   delete_capsule_now <- function(path) {

@@ -22,6 +22,7 @@ tagList(
           mod_sidebar_ui("sidebar")
         ),
         mainPanel(
+          uiOutput("operation_feedback"),
           tabsetPanel(
             id = "network_tabs",
             tabPanel(

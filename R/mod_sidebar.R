@@ -45,6 +45,8 @@ mod_sidebar_ui <- function(id) {
     textInput(ns("rename_capsule_id"), "Rename capsule to"),
     actionButton(ns("rename_capsule"), "Rename current", width = "100%"),
     tags$br(), tags$br(),
+    actionButton(ns("collapse_capsule"), "Collapse current capsule", width = "100%"),
+    tags$br(), tags$br(),
     actionButton(ns("delete_capsule"), "Delete current capsule", class = "btn-warning", width = "100%"),
     tags$hr(),
     tags$h4("Network Tree ZIP"),
@@ -155,7 +157,12 @@ mod_sidebar_server <- function(
 
     observe({
       at_root <- identical(selected_path(), "")
-      for (control in c("rename_capsule_id", "rename_capsule", "delete_capsule")) {
+      for (control in c(
+        "rename_capsule_id",
+        "rename_capsule",
+        "collapse_capsule",
+        "delete_capsule"
+      )) {
         shinyjs::toggleState(control, condition = !at_root)
       }
     })
@@ -238,6 +245,7 @@ mod_sidebar_server <- function(
       new_capsule_id = reactive(input$new_capsule_id),
       rename_capsule = reactive(input$rename_capsule),
       rename_capsule_id = reactive(input$rename_capsule_id),
+      collapse_capsule = reactive(input$collapse_capsule),
       delete_capsule = reactive(input$delete_capsule),
       network_zip_file = reactive(input$network_zip_file),
       import_network = reactive(input$import_network),

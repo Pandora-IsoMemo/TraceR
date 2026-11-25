@@ -12,6 +12,7 @@ test_that("shared sidebar exposes current table and session controls", {
   expect_match(html, 'id="sidebar-selected_path"', fixed = TRUE)
   expect_match(html, 'id="sidebar-add_capsule"', fixed = TRUE)
   expect_match(html, 'id="sidebar-rename_capsule"', fixed = TRUE)
+  expect_match(html, 'id="sidebar-collapse_capsule"', fixed = TRUE)
   expect_match(html, 'id="sidebar-delete_capsule"', fixed = TRUE)
   expect_match(html, 'id="sidebar-download_network"', fixed = TRUE)
   expect_match(html, 'id="sidebar-network_zip_file"', fixed = TRUE)
@@ -39,7 +40,7 @@ test_that("shared sidebar server initializes with shared state and root inputs",
       expect_named(session$returned, c(
         "generate_example", "empty_network", "save_table", "reset_table",
         "add_capsule", "new_capsule_id", "rename_capsule", "rename_capsule_id",
-        "delete_capsule", "network_zip_file", "import_network", "import_capsule_id",
+        "collapse_capsule", "delete_capsule", "network_zip_file", "import_network", "import_capsule_id",
         "import_network_as_capsule", "uploaded_session", "capsule_selection"
       ))
       session$setInputs(generate_example = 1)
@@ -221,6 +222,7 @@ test_that("load actions confirm dirty replacements without changing the checkpoi
     new_capsule_id = shiny::reactiveVal(""),
     rename_capsule = shiny::reactiveVal(0L),
     rename_capsule_id = shiny::reactiveVal(""),
+    collapse_capsule = shiny::reactiveVal(0L),
     delete_capsule = shiny::reactiveVal(0L),
     network_zip_file = shiny::reactiveVal(NULL),
     import_network = shiny::reactiveVal(0L),
@@ -325,4 +327,19 @@ test_that("rename and delete controls are disabled at the root", {
       expect_no_error(session$flushReact())
     }
   )
+})
+
+test_that("shared operation feedback has a bounded scroll area", {
+  ui <- paste(
+    readLines(system.file("app/ui.R", package = "TraceR")),
+    collapse = "\n"
+  )
+  css <- paste(
+    readLines(system.file("app/www/custom.css", package = "TraceR")),
+    collapse = "\n"
+  )
+
+  expect_match(ui, 'uiOutput("operation_feedback")', fixed = TRUE)
+  expect_match(css, "max-height: 320px", fixed = TRUE)
+  expect_match(css, "overflow-y: auto", fixed = TRUE)
 })
