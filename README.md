@@ -7,21 +7,15 @@
 <!-- badges: end -->
 
 TraceR is a Shiny application and R package for describing a directed network
-as an editable table and visualizing it with DiagrammeR. The current app edits
-one network level, with ordinary nodes, edges, and capsule rows.
+as editable tables and visualizing them with DiagrammeR. A network can contain
+hierarchically nested capsules. The app displays and edits one selected level
+at a time; each level contains node, edge, and capsule rows, and its graph is
+derived from the same table.
 
 ## Get Started
 
-Install the published package and its dependencies from the Pandora repository
-and CRAN:
-
-```r
-install.packages("TraceR", repos = c(
-	PANDORA = "https://Pandora-IsoMemo.github.io/drat/",
-	CRAN = "https://cloud.r-project.org"
-))
-TraceR::startApplication(launch.browser = TRUE)
-```
+For installation instructions, see the
+[TraceR page in the Pandora applications guide](https://pandora-isomemo.github.io/docs/apps.html#tracer).
 
 From a development checkout, use `devtools::load_all()` followed by
 `startApplication(launch.browser = TRUE)`, as in
@@ -29,32 +23,63 @@ From a development checkout, use `devtools::load_all()` followed by
 
 1. Click **Load Example** to load the research workflow.
 2. Edit a cell in **Network Table** by double-clicking it and leaving the cell
-	 to commit the change. Add/delete rows or rename optional columns as needed.
-3. Open **Network Graph** to inspect the graph derived from the same table.
-4. Download unsigned table JSON to retain the current network outside the app.
+   to commit the change. Add/delete rows or rename optional columns as needed.
+3. Use the **Network Tree** to select a capsule and view its table or graph.
+   The sidebar also lets you add, rename, delete, or collapse the selected
+   capsule.
+4. Open **Network Graph** to inspect the graph derived from the selected table.
+5. Use **Download Network** to retain the complete hierarchy as a ZIP archive.
 
-Validation feedback preserves incomplete edits. IDs must be unique, Type must
-be `node`, `edge`, or `capsule`, and edge endpoints refer to node/capsule IDs.
-Errors block Save and table JSON exchange. Unresolved references are warnings:
-they permit Save and JSON exchange but prevent graph rendering until resolved.
+Validation feedback preserves incomplete edits. IDs must be unique within each
+level, Type must be `node`, `edge`, or `capsule`, and edge endpoints refer to
+node/capsule IDs in that same level. Errors block Save and table JSON exchange.
+Unresolved references are warnings: they permit Save and table JSON exchange but
+prevent graph rendering until resolved. Capsule collapsing performs additional
+preflight checks and reports blocking issues without partially changing the
+network.
 
 ## Save and Exchange Data
 
 **Save is a session-local checkpoint, not permanent storage or a download.**
-**Reset** restores that checkpoint after confirmation. Loading or importing a
-network changes only the working table and asks before discarding unsaved work.
+**Reset** restores that checkpoint after confirmation. Save and Reset apply to
+the selected level and its structural changes, including capsule operations.
+Loading or importing a replacement network asks before discarding unsaved work.
 Closing or restarting the Shiny session loses its checkpoint.
 
 | Option | What it retains |
 |--------|-----------------|
-| Unsigned table download (`data.json`) | Current rows, values, column names and order, including unsaved edits. |
-| Signed table download (`data-signed.json`) | The same table payload plus an experimental RSA-SHA256 signature. |
-| Download Session (`.tracer`) | Working table and application inputs in an unsigned DataTools bundle, not the saved checkpoint. |
+| Network ZIP (`network.zip`) | The complete working network, including all capsule tables and hierarchy. |
+| Unsigned table download (`data.json`) | The currently selected table, including unsaved edits; it does not include descendant tables. |
+| Signed table download (`data-signed.json`) | The same selected-table payload plus an experimental RSA-SHA256 signature. |
+| Download Session (`.tracer`) | The currently selected table and application inputs in an unsigned DataTools bundle, not the saved checkpoint or full hierarchy. |
+
+The Network ZIP controls are in the sidebar. **Import Network** replaces the
+working hierarchy after confirmation when necessary; **Import ZIP as capsule**
+adds an imported hierarchy beneath a new capsule at the selected level.
 
 The table download is labeled **Download** when no private key is loaded, or
 **Download JSON** alongside **Download Signed JSON** when a key is available.
-Table **Import** and **Import Session** are separate actions. Legacy graph JSON
-and graph-only sessions are unsupported by the current app.
+Table **Import** and **Import Session** are separate actions. Table JSON and
+session imports restore a table as the root level; use Network ZIP to exchange
+a complete hierarchy. Legacy graph JSON and graph-only sessions are unsupported.
+
+### Capsule operations
+
+The tree navigates the network hierarchy. **Add into current**, **Rename
+current**, and **Delete current capsule** manage the selected capsule. Deleting
+a capsule removes its subtree but does not rewrite parent-level edges that refer
+to it; those references become validation warnings.
+
+**Collapse current capsule** promotes its immediate contents one level, prefixes
+promoted IDs with the capsule ID, updates local edge references and descendant
+paths, then removes the capsule. It does not recursively collapse nested
+capsules. Parent-level connections are redirected to internal starting or end
+elements; empty capsules are treated as pass-through elements. The capsule row
+and its metadata are removed. A persistent report summarizes the changes and
+lists every generated, updated, or removed edge; the report is capped at 320px
+and longer reports can be scrolled.
+Blocked operations leave the network unchanged. The resulting changes remain
+unsaved until Save.
 
 ### Experimental Signatures
 
@@ -71,23 +96,26 @@ Signatures do not yet identify authors/downloaders.
 
 ## Guides and Reference
 
-- [User guide](https://pandora-isomemo.github.io/TraceR/articles/using-tracer.html): editing, validation, Save/Reset, JSON, signatures, and session workflows.
-- [Developer guide](https://pandora-isomemo.github.io/TraceR/articles/architecture.html): module/state ownership, JSON/signature contracts, deployment, tests, and extension boundaries.
+- [User guide](https://pandora-isomemo.github.io/TraceR/articles/using-tracer.html): editing, capsule navigation/collapse, validation, Save/Reset, ZIP, JSON, signatures, and session workflows.
+- [Developer guide](https://pandora-isomemo.github.io/TraceR/articles/architecture.html): network/state ownership, capsule/ZIP operations, JSON/signature contracts, deployment, tests, and extension boundaries.
 - [API reference](https://pandora-isomemo.github.io/TraceR/reference/index.html).
 - Guide sources: [vignettes/using-tracer.Rmd](https://github.com/Pandora-IsoMemo/TraceR/blob/main/vignettes/using-tracer.Rmd) and [vignettes/architecture.Rmd](https://github.com/Pandora-IsoMemo/TraceR/blob/main/vignettes/architecture.Rmd).
 - [Release notes](https://pandora-isomemo.github.io/TraceR/news/index.html) describe changes over time, not the complete current feature set.
 
 The guides are also standard package vignettes: use `browseVignettes("TraceR")`
-when they are included in the installed package. Hierarchical capsules, permanent
+when they are included in the installed package. Hierarchical edge references,
+cross-level edges, stable internal IDs independent of user IDs, permanent
 storage, templates, revision history, authenticated authorship, and configurable
-graph appearance remain future work. Capsules currently have no nested network.
+graph appearance remain future work. Networks are directed but are not required
+to be acyclic.
 
 ## Development
 
-The application server owns one working `tracer_table` and a separate saved
-checkpoint. Network is derived from the working table; the sidebar coordinates
-actions and downloads, while the Table module handles editing. See the developer
-guide before changing persistence or introducing new network state.
+The application server owns working and saved `tracer_network` values, a
+working-to-saved capsule path map, the selected path, and the selected
+`tracer_table`. The Table module edits that selected table; the Network module
+derives its graph; and the sidebar coordinates navigation and capsule actions.
+See the developer guide before changing persistence or network state.
 
 From the checkout, run:
 

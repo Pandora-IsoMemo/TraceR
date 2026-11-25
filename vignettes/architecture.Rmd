@@ -14,10 +14,9 @@ library(TraceR)
 
 ## Scope of this guide
 
-This is the implementation snapshot reviewed on 2026-11-20, based on TraceR
-26.11.1 and the subsequent fixes in this checkout. It describes the current
-application, not the historical roadmap. Update it when changing module
-interfaces, replacement rules, persistence, or signature formats.
+This guide describes the current application architecture rather than the
+historical roadmap. Update it when changing module interfaces, network
+ownership, replacement rules, persistence, or signature formats.
 
 TraceR is an R package containing a Shiny app. The root UI is `inst/app/ui.R`;
 the root server is `inst/app/server.R`. Installed packages contain that directory
@@ -28,26 +27,30 @@ as `app/`, and `startApplication()` runs it. The source-development entry point
 
 ```text
 Root server
-  current_table --------> Table module (edits current_table)
+  working_network <----> current_table (selected-path editor view)
        |                         |
-       +--> Network module       +--> validation feedback
+       +--> Network module       +--> Table module
+       |    selected table            edits and table feedback
        |    as.graph_tables()
        |    DiagrammeR graph
-       +--> Sidebar module (downloads, session data)
-  saved_table ----------> unsaved_changes
-  pending_replacement --> confirmation --> current_table
-  inputs_to_restore ----> updateInput(root input, root session)
+  saved_network + path_map --> selected-path Save/Reset
+  selected_path ------------> capsule tree/navigation
+  pending_replacement -------> confirmation --> working_network
+  operation_feedback --------> shared collapse report
+  inputs_to_restore ---------> updateInput(root input, root session)
 
 Sidebar actions/import requests --> Root server coordination
 ```
 
 | Owner | Source | Responsibility |
 |-------|--------|----------------|
-| Root UI/server | `inst/app/ui.R`, `inst/app/server.R` | Module wiring, keys, checkpoints, replacement confirmation, JSON verification, session restore. |
-| Shared sidebar | `R/mod_sidebar.R` | Controls, network ZIP handlers, session import/download, action reactives. |
+| Root UI/server | `inst/app/ui.R`, `inst/app/server.R` | Module wiring, working/saved networks, selected path/table, path mapping, replacement confirmation, JSON verification, session restore, collapse coordination and shared feedback. |
+| Shared sidebar | `R/mod_sidebar.R` | Capsule tree/actions, network ZIP handlers, session import/download, action reactives. |
 | Table module | `R/mod_table.R` | Editable DT, row operations, optional-column renaming, table feedback, scroll behavior, table JSON download/import. |
 | Network module | `R/mod_network.R` | Reactive graph derivation, render availability, click feedback, pan/zoom. |
 | Table model | `R/04_tracerTable.R` | Schema constructor, validation, value-based comparison. |
+| Network model | `R/07_tracerNetwork.R` | Hierarchical table/path storage, capsule operations, validation, selected-path Save/Reset, and path-map helpers. |
+| Network ZIP | `R/08_tracerNetworkZip.R` | Whole-network ZIP import/export and importing a network as a capsule. |
 | Conversion | `R/05_graphTables.R` | Mapping TraceR rows into styled DiagrammeR node/edge tables. |
 | JSON and signatures | `R/06_tracerTableJson.R` | Pure table serialization, deserialization, signing, verification. |
 | Configuration | `R/00_config.R`, `inst/config.yaml` | DataTools import/session configuration. |
@@ -56,37 +59,62 @@ The root UI has no module namespace. Each module namespaces its own controls.
 The sidebar receives the **root input object** for session downloads; its own
 input scope would not include the sibling Table and Network modules.
 
-The Table module receives the mutable `current_table` reactive value. Network
-receives the same value but does not mutate it. Its graph is a derived reactive,
-not a second authoritative network. The sidebar does not own a checkpoint.
+The server owns the canonical `working_network` and `saved_network` values.
+`current_table` is the editor view for `selected_path`; the Table module edits
+it, and root-server coordination writes it back to that network path. The
+Network module derives a graph for the selected table and does not mutate the
+network. The sidebar receives network/path reactives for navigation and
+downloads but does not own a checkpoint.
+
+The network model stores a root `tracer_table` and a named collection of child
+tables keyed by slash-separated capsule paths. Each table validates and
+resolves edge references locally; dot-notation hierarchical references and
+cross-level edges are not supported. Capsule IDs identify the child path below
+their parent. Networks are directed and may contain cycles.
 
 ## Working state, checkpoints, and replacements
 
-`current_table` and `saved_table` start as equivalent zero-row tables. Their roles
-are deliberately different: editing changes only the working table; Save changes
-only the checkpoint. Both are session-local and disappear on session termination.
+`working_network` and `saved_network` start as equivalent empty networks.
+`selected_path` starts at the root, and `current_table` starts as the root table.
+The root server tracks a `path_map` from working capsule paths to corresponding
+saved paths; this supports uncommitted capsule renames and structural changes.
+All of these values are session-local and disappear on session termination.
 
-`unsaved_changes` compares ordered column names and character vectors through
-`tracer_table_data_identical()`. Incidental data-frame row names are ignored.
-Sorting, filtering, and graph state do not enter this comparison. Reverting an
-edit to its checkpoint value clears dirty state without needing another Save.
+`unsaved_changes` compares the complete network through
+`tracer_network_data_identical()` and also checks that the editor view matches
+the working table at `selected_path`. Table comparisons use ordered column names
+and character vectors; incidental data-frame row names are ignored. Sorting,
+filtering, and graph state do not enter this comparison. Reverting an edit to
+checkpoint values clears dirty state without needing another Save.
 
-| Action | Working table | Checkpoint |
-|--------|---------------|------------|
-| Cell/row/column-name edit | Updated, even if incomplete | Unchanged |
-| Save | Unchanged | Updated only if validation has no errors |
-| Reset and confirm | Complete checkpoint restored | Unchanged |
-| Load Example / Load Empty | Replaced after dirty confirmation when necessary | Unchanged |
-| Accepted table JSON import | Verified/validated table replaces work after dirty confirmation | Unchanged |
-| Accepted session import | Structurally valid session table replaces work after dirty confirmation | Unchanged |
+| Action | Working network/table | Checkpoint |
+|--------|------------------------|------------|
+| Cell/row/column-name edit | Selected table updated, even if incomplete | Unchanged |
+| Capsule add/rename/delete/collapse | Working hierarchy and path map updated | Unchanged |
+| Save selected path | Selected table and that level's structure checkpointed if validation has no errors | Updated at that path |
+| Reset selected path | Saved table/structure restored using the path map | Unchanged |
+| Load Example / Load Empty / Import Network ZIP | Entire working hierarchy replaced after dirty confirmation when necessary | Unchanged |
+| Accepted table JSON / session import | Imported table becomes a new root hierarchy after dirty confirmation | Unchanged |
 | Any download | Unchanged | Unchanged |
 
-`request_replacement()` is the root's common gate for loads and imports. It either
-applies a replacement immediately when clean or stores it in
-`pending_replacement` and opens confirmation. Cancel discards the pending request,
-not the current table. `apply_replacement()` installs the table, requests scrolling
-to the top, and restores session inputs when supplied. Reset has its own
-confirmation handler. Ordinary tab switching is not blocked.
+`tracer_network_save_table()` validates and saves the selected table with the
+capsule structure at that path. Unchanged or renamed descendant tables are
+copied from their corresponding checkpoint paths; a newly added subtree is
+saved with its parent. A child path cannot be saved until its parent capsule is
+checkpointed. Reset uses the path map to restore the saved subtree, including
+deleted saved descendants, while removing unsaved additions.
+
+`request_replacement()` is the root's common gate for whole-network and
+table/session loads. It either applies a replacement immediately when clean or
+stores it in `pending_replacement` and opens confirmation. Cancel discards the
+pending request, not the current network. `apply_replacement()` installs the
+network, resets selection to root and rebuilds the path map, requests scrolling
+to the top, and restores session inputs when supplied. Table JSON and session
+imports construct a root network from the imported table; capsule rows receive
+empty child tables. ZIP import reconstructs the full hierarchy, while
+Import-as-capsule inserts that hierarchy under a new capsule without replacing
+the current network. Reset has its own confirmation handler. Ordinary tab
+switching is not blocked.
 
 ## Table model and validation
 
@@ -166,6 +194,51 @@ table is valid. `renderFlowchart()`, `initialize_graph_zooming()`, and
 `displayNodeId()` remain active helpers. The zoom observer handles dynamically
 inserted SVGs; click feedback maps numeric graph IDs back to TraceR IDs.
 
+## Capsule operations and shared feedback
+
+The network model in `R/07_tracerNetwork.R` owns validation and transformations
+of the root table and path-keyed child tables. Add, rename, delete, and
+navigation are coordinated by the root server and sidebar. The path map tracks
+working-to-saved paths through uncommitted changes; it is not a permanent
+capsule identity system.
+
+`collapse_tracer_capsule()` is a pure network transformation: it returns a
+result with success/issues and, on success, the updated network and detailed
+reports for promoted IDs, path updates, edge changes, and metadata conflicts.
+The app validates the candidate before replacing `working_network`, updates the
+path map, navigates to the parent, and retains the report in
+`operation_feedback`. The UI renders that shared feedback on both tabs, with a
+dismiss action and a 320px maximum-height scrolling area. A failed operation
+does not replace the working network. The parent and child tables must have
+matching optional-column names; order may differ. The app does not infer
+hierarchical edge references while collapsing.
+
+For nonempty capsules, immediate child-table starting/end elements determine
+how incoming/outgoing parent edges are expanded. Nested capsules are promoted
+one level and descendant paths are updated; they are not recursively collapsed.
+Empty capsules use pass-through pairing for ordinary incoming/outgoing edges.
+The capsule row and its metadata are removed. Metadata conflicts are reported
+and affected values are left blank according to the transformation rules.
+Inspect the focused `test-collapse-capsule.R` tests when changing these
+invariants.
+
+## Whole-network ZIP format
+
+`tracer_network_to_zip()` and `tracer_network_from_zip()` in
+`R/08_tracerNetworkZip.R` exchange complete hierarchies. Each capsule path
+contains a `data.json` using the existing table JSON version 1 format, including
+one root table. Import validates paths, entry types, duplicate/case-colliding
+entries, network structure, and table data. Defaults limit archives to 1,000
+entries, 100 MiB uncompressed total, 110 MiB archive size, 10 MiB per table,
+100:1 compression ratio, and 64 capsule levels. ZIP export rejects networks
+with validation errors.
+
+The app's **Import Network** action replaces the working hierarchy through the
+normal confirmation gate. **Import ZIP as capsule** uses
+`import_tracer_network_as_capsule()` to insert the imported root and descendants
+under a new capsule at the current path. Neither operation changes the saved
+checkpoint until Save.
+
 ## Table JSON format, version 1
 
 `tracer_table_to_json()` writes an object with exactly `format`, `version`,
@@ -196,7 +269,10 @@ stopifnot(is.na(restored$data$Author[1]), restored$data$Description[2] == "")
 
 Legacy DiagrammeR graph JSON is not this format. The app rejects it rather than
 guessing a migration. Table JSON contains neither saved checkpoints nor root
-Shiny inputs.
+Shiny inputs, and represents one table only. In the app, download serializes
+the selected table; table JSON import installs it as a new root table and
+creates empty child tables for any capsule rows. Use network ZIP to preserve a
+hierarchy.
 
 ## Experimental signature contract
 
@@ -262,9 +338,10 @@ copying production private keys to local installations.
 Session downloads use `DataTools::downloadModelServer()` with
 `dat = reactive(list(tracer_table = current_table()))`, root inputs, NULL model,
 and `onlySettings = TRUE`. DataTools `.tracer` bundles remain unsigned. The saved
-checkpoint is not included. Session import extracts `data$tracer_table`, checks
-its class/data-frame structure, requests replacement, then restores matching
-inputs through `updateInput()` using the root session. Removed IDs are ignored.
+checkpoint and the rest of the hierarchy are not included. Session import
+extracts `data$tracer_table`, checks its class/data-frame structure, builds a
+root network, requests replacement, then restores matching inputs through
+`updateInput()` using the root session. Removed IDs are ignored.
 Session serialization captures inputs broadly, including transient widget state;
 do not treat it as authenticated persistence or assume temporary upload paths
 are portable.
@@ -287,9 +364,12 @@ pkgdown::build_site()
 | Test slice | Important contracts |
 |------------|---------------------|
 | `test-tracer-table.R` | Eleven-column schema, incomplete states, IDs, edge warnings/errors. |
+| `test-tracer-network.R` | Hierarchical paths, capsule operations, network validation, Save/Reset and path-map behavior. |
+| `test-collapse-capsule.R` | Atomic promotion, edge rewrites, empty-capsule pass-through, metadata conflicts and blocking cases. |
+| `test-tracer-network-zip.R` | Whole-network ZIP round-trips, capsule import, malformed archives and configured limits. |
 | `test-graph-tables-tracer-table.R` | Identity mapping, fixed appearance, missing labels, strict conversion. |
 | `test-mod-table.R` | Shared edits, row operations, optional-column names. |
-| `test-mod-sidebar.R` | Controls, Load confirmation, independent key loading. |
+| `test-mod-sidebar.R` | Controls, replacement/navigation confirmation, network ZIP workflows, collapse feedback and independent key loading. |
 | `test-tracer-table-json.R` | JSON/null/order round-trips, RSA-SHA256 verification, tamper detection. |
 | `test-mod-network.R` | Derived graph behavior and retained legacy APIs/deprecation signals. |
 
@@ -312,22 +392,28 @@ Deprecated compatibility entry points include `createExampleGraph()`,
 download/import modules, `check_signature_validity()`, and
 `mod_network_sidebar_ui()`. The private/public key parameters on
 `mod_network_server()` are also legacy. Their implementations remain available;
-new app work should use tracer_table APIs and the shared sidebar instead.
+new app work should use `tracer_table` and `tracer_network` APIs and the shared
+sidebar instead.
 
 Future features should preserve these rules:
 
-- Keep current_table authoritative; derive graphs instead of synchronizing copies.
+- Keep `working_network` authoritative; treat `current_table` as the selected
+  editor view and derive graphs instead of synchronizing graph copies.
 - Preserve incomplete editing states and the distinction between errors/warnings.
-- Route whole-table replacements through the root confirmation gate.
-- Keep Save checkpoints independent from downloads and imports.
+- Route whole-network and root-table replacements through the root confirmation gate.
+- Keep selected-path Save/Reset checkpoints independent from downloads/imports,
+  and preserve working-to-saved path mappings across structural operations.
+- Keep capsule collapse atomic and retain its edge-change and metadata-conflict
+  report until dismissed or reset.
 - Store optional names only in the data frame.
 - Preserve ID mapping and visually blank missing labels.
 - Keep completed import counters and isolated payload reads paired.
 - Keep signature bytes/versioning explicit; never reinterpret failed signed input.
 - Add authenticated identity metadata only through a deliberate new trust/format design.
 
-Nested capsules, hierarchy navigation, permanent storage, templates, multi-network
-linking, revision history, configurable appearance, and authenticated authorship
-remain future work. The historical `inst/scripts/tasks.md` is a roadmap, not
-evidence that those features are implemented. No PEITHO import or AI integration
-is part of the current production app.
+Hierarchical edge references, cross-level edges, permanent storage, templates,
+multi-network linking, revision history, configurable appearance, and
+authenticated authorship remain future work. The historical
+`inst/scripts/tasks.md` is a roadmap, not evidence that those features are
+implemented. No PEITHO import or AI integration is part of the current
+production app.

@@ -14,15 +14,19 @@ library(TraceR)
 
 ## What TraceR currently does
 
-TraceR describes one network as an editable table and derives a directed graph
-from that table. The **Network Table** tab opens first. The **Network Graph**
-tab shows the same data; switching tabs does not reset the network.
+TraceR stores a directed network as a hierarchy of editable tables. Each
+capsule contains a child table, which may contain further capsules. The app
+shows one selected level at a time: **Network Table** edits that table and
+**Network Graph** visualizes the same level. Switching tabs does not reset the
+network.
 
-The shared sidebar contains **Network Table** controls and separate **Session**
-controls. A session is one running Shiny connection, not permanent storage.
+The shared sidebar contains the capsule tree, network actions, and separate
+**Session** controls. A session is one running Shiny connection, not permanent
+storage.
 
 **Save is not a file download.** It creates a checkpoint only in the current
-session. Download a JSON or session file to retain your work after closing or
+session. Save and Reset apply to the selected level and structural changes made
+there. Download a Network ZIP to retain the complete hierarchy after closing or
 restarting the app.
 
 ## Start with the example
@@ -44,9 +48,15 @@ Select `C1` in the tree to view its table or graph. If prompted, choose
 The same example is available from R:
 
 ```{r example}
-example <- createExampleTracerNetwork()
-knitr::kable(get_tracer_table(example)$data[c("ID", "Label", "Type", "From", "To")])
-knitr::kable(get_tracer_table(example, "C1")$data[c("ID", "Label", "Type", "From", "To")])
+example_table <- createExampleTracerTable()
+knitr::kable(example_table$data[c("ID", "Label", "Type", "From", "To")])
+```
+
+To access the complete sample hierarchy from R, use:
+
+```{r example-network, eval=FALSE}
+example_network <- createExampleTracerNetwork()
+get_tracer_table(example_network, "C1")
 ```
 
 Use `createExampleTracerTable()` to obtain only the root table.
@@ -61,11 +71,11 @@ a prefilled editing row. It also asks for confirmation before replacing unsaved
 work. Fill the new row with an ID, Label, and Type. Add further rows for other
 nodes and edges.
 
-Each table has eleven columns:
+Each level has an eleven-column table:
 
 | Column | Meaning |
 |--------|---------|
-| ID | A unique identifier within this network, including edges. |
+| ID | A unique identifier within this table, including edges. |
 | Label | Optional text displayed on a node, capsule, or edge. |
 | Type | Exactly `node`, `capsule`, or `edge`, entered as text. |
 | From | For an edge, the ID of its source node or capsule. |
@@ -74,8 +84,8 @@ Each table has eleven columns:
 | Five optional columns | Additional text metadata with user-chosen column names. |
 
 The six mandatory column names cannot be renamed through the editor. All cell
-values are editable. ID values are not generated automatically, and node IDs
-and edge IDs must be unique across the whole table. Edges run from From to To.
+values are editable. ID values are not generated automatically, and node,
+capsule, and edge IDs must be unique within the table. Edges run from From to To.
 There is no requirement to use the example's N/E/C naming convention.
 
 For a minimal connected network, create these three rows:
@@ -104,8 +114,55 @@ The table has no pagination. Its fixed-height viewport shows roughly ten
 single-line rows, with vertical and horizontal scrolling for larger tables.
 Text does not wrap in data cells. Blank rows retain a usable editing height.
 
-Deleting a node or capsule does **not** delete edges that refer to it. The app
-reports those unresolved references; edit or delete the edges yourself.
+Deleting a node does **not** delete edges that refer to it. The app reports
+those unresolved references; edit or delete the edges yourself. Deleting a
+capsule uses the sidebar control and removes its child-table subtree, but does
+not rewrite parent-level edges that refer to the deleted capsule.
+
+## Navigate and manage capsules
+
+The **Network Tree** displays the hierarchy. Select **Root** or a capsule to
+open that level in both the Table and Graph tabs. If there are unsaved changes,
+navigation asks you to save, discard, or cancel. **Add into current** creates a
+child capsule at the selected level; **Rename current** changes a capsule ID
+and its descendant paths; **Delete current capsule** removes that capsule and
+all of its child tables. Deleting a capsule can leave unresolved parent-level
+edge references, which are reported by table validation.
+
+### Collapse a capsule
+
+Select a non-root capsule in the tree and choose **Collapse current capsule**.
+After confirmation, TraceR promotes the capsule's immediate table to its
+parent, removes the selected capsule, and navigates to the parent. It does not
+recursively collapse nested capsules. For example, promoting `N1` from `C1`
+creates `C1_N1`; an internal edge from `N1` to `N2` becomes an edge from
+`C1_N1` to `C1_N2`. The external **Unique identifier** values are not changed.
+Promoted nested capsules keep their contents, while their paths move up one
+level. Metadata on the removed capsule row is not transferred.
+
+For a nonempty capsule, existing parent edges entering the capsule are
+redirected to its internal starting elements, and edges leaving it are
+redirected from its internal end elements. Starting/end elements are nodes or
+nested capsules without incoming/outgoing edges in the immediate child table.
+Branching, merging, disconnected components, and cycles are allowed. If an
+external connection needs a start or end but none exists, TraceR blocks the
+operation without changing the network. A self-loop on the capsule connects
+internal end elements back to internal starting elements.
+
+An empty capsule acts as a pass-through: each ordinary incoming edge is paired
+with each ordinary outgoing edge. The removed capsule row and its self-loops
+are not part of those pairs. If combined edge metadata conflicts, the affected
+field is left empty and reported; other metadata is retained where possible.
+
+The collapse operation is validated before it is applied. Unresolved internal
+references, invalid or colliding resulting IDs/paths, incompatible optional
+column names, and missing required boundary elements block the operation.
+Optional column names in the parent and capsule tables must match (order may
+differ). On success, a shared, dismissible report remains visible on both tabs.
+It summarizes the promotion and lists every generated, updated, or removed
+edge; the report has a 320px maximum height and a vertical scrollbar for longer
+content. Metadata conflicts are shown as warnings. Collapse changes are working
+data until Save; Reset at the parent restores its saved structure.
 
 ## Understand validation and graph availability
 
@@ -130,25 +187,42 @@ partial or stale graph. Correcting the table restores rendering automatically.
 The graph uses a fixed top-down layout: ordinary nodes are circles and capsules
 are rounded boxes in different fixed colors. Labels appear when present;
 missing labels are visually blank rather than replaced with IDs. Pan and zoom
-are available, and node-click feedback reports the original TraceR ID. There
-are no appearance settings or capsule navigation controls yet.
+are available, and node-click feedback reports the original TraceR ID. The
+graph represents only the selected level; cross-level edges and appearance
+settings are not currently supported.
 
 ## Save, Reset, and unsaved changes
 
-The sidebar displays **Saved** or **Unsaved changes** by comparing the current
-table with its saved checkpoint. Cell edits, row operations, optional-column
-renames, and loading/importing another table can change that status. Reverting
-to the saved values clears it. Sorting, filtering, and tab switching do not
-mark the data as changed.
+The sidebar displays **Saved** or **Unsaved changes** by comparing the working
+network and selected table with the session-local checkpoint. Cell edits, row
+operations, optional-column renames, capsule operations, and loading/importing
+data can change that status. Reverting to saved values clears it. Sorting,
+filtering, and tab switching do not mark data as changed.
 
-**Save** validates the working table and replaces the session-local checkpoint.
-It neither writes a permanent server file nor downloads a file. **Reset** asks
-before discarding changes, then restores the complete checkpoint: values,
-missing values, rows, column names, and their original order. Reset does not
-mean Load Empty. Initially, the checkpoint is the empty table.
+**Save** validates the selected table and checkpoints it together with
+structural changes made at that level. It neither writes a permanent server
+file nor downloads a file. **Reset** asks before discarding changes and restores
+the saved table and capsule structure at the selected path. It restores deleted
+saved subtrees, removes newly added unsaved subtrees, and preserves working data
+in renamed descendant capsules where their paths can be mapped. Reset does not
+mean Load Empty. Initially, the checkpoint is an empty network.
 
 For example: load the example, Save, change N2's label, delete E3, rename an
-optional column, then Reset and confirm. The saved example is restored in full.
+optional column, then Reset and confirm at the same level. The saved table and
+structure are restored.
+
+## Exchange complete networks as ZIP
+
+The sidebar's **Download Network** exports the complete working hierarchy,
+including unsaved table edits. The archive stores one table JSON file per
+capsule path. It does not include app inputs, saved checkpoints, or signatures.
+
+**Import Network** replaces the working hierarchy after confirmation if there
+are unsaved changes. **Import ZIP as capsule** instead inserts the imported
+hierarchy beneath a new capsule at the selected level. Both validate the
+network before applying it. ZIP files are subject to entry-count, archive-size,
+uncompressed-size, per-table-size, compression-ratio, and nesting-depth limits.
+Use ZIP exchange when preserving the hierarchy matters.
 
 ## Download and import network-table JSON
 
@@ -156,17 +230,20 @@ Use the **Table JSON** controls below the table in the Network Table tab. It is 
 **Download** when no private key is loaded, or **Download JSON** alongside
 **Download Signed JSON** when a private key is available.
 
-The unsigned download is `data.json`. It exports the **current working table**,
-including unsaved edits, without changing the checkpoint. It contains no graph
-rendering settings or application inputs. Both signed and unsigned table
-downloads block validation errors and allow unresolved-reference warnings.
+The unsigned download is `data.json`. It exports the **currently selected
+working table**, including unsaved edits, without changing the checkpoint. It
+does not export descendant tables, app inputs, or graph rendering settings.
+Both signed and unsigned table downloads block validation errors and allow
+unresolved-reference warnings.
 
 Use **Import** to choose a supported JSON file through the DataTools dialog.
 After loading the file, click **Accept**. Signed files must verify successfully
 before they are accepted as tables. Invalid data or failed verification leaves
-the current table unchanged. If the working table is dirty, confirm replacement
-or cancel. The imported table does not overwrite the checkpoint: Save it to make
-it the new checkpoint, or Reset to return to the previous one.
+the current network unchanged. If the working network is dirty, confirm
+replacement or cancel. The imported table becomes a new root table; capsule rows
+receive empty child tables. It does not overwrite the checkpoint: Save it to
+make it the new checkpoint, or Reset to return to the previous one. Use ZIP
+import instead to preserve a hierarchy.
 
 Legacy DiagrammeR graph JSON files are not network-table JSON and cannot be
 imported through this action. There is no automatic graph-to-table migration.
@@ -197,13 +274,15 @@ with a new signature. Unsigned imports are permitted but not authenticated.
 ## Download and import sessions
 
 The **Session** section is separate from network-table JSON. **Download Session**
-creates a DataTools `.tracer` bundle containing the working table and application
-inputs. Its controls include Notes and File name. Session downloads are unsigned
-and are not replaced by the JSON workflow.
+creates a DataTools `.tracer` bundle containing the currently selected working
+table and application inputs. Its controls include Notes and File name. Session
+downloads are unsigned and do not contain the full network hierarchy or saved
+checkpoint.
 
-**Import Session** restores the bundle's table and matching application inputs.
-Dirty work requires replacement confirmation. The saved checkpoint is not
-imported or replaced, so the restored table may be unsaved relative to it. Old
+**Import Session** restores the bundle's table as a new root table, along with
+matching application inputs. Capsule rows receive empty child tables. Dirty
+work requires replacement confirmation. The saved checkpoint is not imported
+or replaced, so the restored table may be unsaved relative to it. Old
 graph-only sessions are unsupported.
 
 Session files may contain temporary widget/input state as well as useful settings;
@@ -214,9 +293,12 @@ content is corrected.
 
 ## Current limits
 
-TraceR currently edits one network level. Nested capsule data, hierarchy
-navigation, linked network instances, templates defining allowed element types,
-permanent server storage, authenticated authorship, revision history, and
-configurable graph appearance are not implemented. Save checkpoints disappear
-when the Shiny session ends. The developer guide documents the architecture and
-extension boundaries for these future features.
+TraceR supports nested capsule data, hierarchy navigation, capsule management,
+collapse, and whole-network ZIP exchange. References remain local to each
+table; hierarchical dot-notation references and cross-level edges are not
+implemented. Networks are directed but are not required to be acyclic. Linked
+network instances, templates defining allowed element types, permanent server
+storage, authenticated authorship, revision history, and configurable graph
+appearance are also not implemented. Save checkpoints disappear when the Shiny
+session ends. The developer guide documents the architecture and extension
+boundaries for these future features.
