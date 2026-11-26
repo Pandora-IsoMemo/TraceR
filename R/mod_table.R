@@ -32,8 +32,11 @@ mod_table_ui <- function(id) {
     tags$hr(),
     tags$h4("Table JSON"),
     fluidRow(
-      column(6, uiOutput(ns("table_download_controls"))),
-      column(6, DataTools::importUI(ns("table_import"), label = "Import"))
+      column(
+        3,
+        uiOutput(ns("table_download_controls")),
+        DataTools::importUI(ns("table_import"), label = "Import (Signed) JSON")
+      )
     ),
     tags$style(htmltools::HTML("#table-table .dataTables_scrollBody tbody td { height: 1.5em; }")),
     tags$script(htmltools::HTML("
@@ -253,18 +256,20 @@ mod_table_server <- function(id, current_table, private_key = NULL) {
 
     output$table_download_controls <- renderUI({
       if (is.null(private_key)) {
-        return(downloadButton(session$ns("download_table"), "Download"))
+        return(downloadButton(session$ns("download_table"), "Download", style = "width: 100%;"))
       }
 
       tagList(
-        downloadButton(session$ns("download_table"), "Download JSON"),
+        downloadButton(session$ns("download_table"), "Download JSON", style = "width: 100%;"),
         tags$br(), tags$br(),
-        downloadButton(session$ns("download_signed_table"), "Download Signed JSON"),
+        downloadButton(session$ns("download_signed_table"),
+                       "Download Signed JSON",
+                       style = "width: 100%;"),
         tags$div(
           class = "alert alert-warning",
           role = "alert",
           style = "margin-top: 10px; padding: 10px; font-size: 13px;",
-          tags$strong("Experimental: testing only"),
+          tags$strong("Experimental: Signed JSON is testing only."),
           tags$br(),
           "Future versions may not verify current signed files. Keep an unsigned JSON copy."
         ),

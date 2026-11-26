@@ -50,7 +50,7 @@ mod_sidebar_ui <- function(id) {
     actionButton(ns("delete_capsule"), "Delete current capsule", class = "btn-warning", width = "100%"),
     tags$hr(),
     tags$h4("Network Tree ZIP"),
-    downloadButton(ns("download_network"), "Download Network", width = "100%"),
+    downloadButton(ns("download_network"), "Download Network", style = "width: 100%;"),
     fileInput(ns("network_zip_file"), "Network ZIP file", accept = ".zip", width = "100%"),
     actionButton(ns("import_network"), "Import Network", width = "100%"),
     textInput(ns("import_capsule_id"), "Import as capsule ID"),
