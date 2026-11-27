@@ -218,6 +218,64 @@ test_that("empty capsule self-loops are removed rather than used as pass-through
   expect_false("Eloop" %in% result$network$root$data$ID)
 })
 
+test_that("large empty-capsule expansion preserves row and report ordering", {
+  incoming <- paste0("I", seq_len(100L))
+  outgoing <- paste0("O", seq_len(100L))
+  parent <- collapse_test_table(
+    c("A", incoming, "C1", outgoing, "B"),
+    c("node", rep("edge", 100L), "capsule", rep("edge", 100L), "node"),
+    from = c("", rep("A", 100L), "", rep("C1", 100L), ""),
+    to = c("", rep("C1", 100L), "", rep("B", 100L), ""),
+    labels = c("", rep("Input", 100L), "", rep("Output", 100L), "")
+  )
+  network <- collapse_test_network(parent, collapse_test_table())
+
+  result <- collapse_tracer_capsule(network, "C1")
+
+  expect_true(result$success)
+  ids <- paste(rep(incoming, each = 100L), rep(outgoing, times = 100L), sep = "_")
+  originals <- paste(rep(incoming, each = 100L), rep(outgoing, times = 100L), sep = ", ")
+  output <- result$network$root$data
+  expect_identical(output$ID, c("A", ids, "B"))
+  expect_identical(output$From, c("", rep("A", 10000L), ""))
+  expect_identical(output$To, c("", rep("B", 10000L), ""))
+  expect_identical(output$Label, rep("", 10002L))
+  expect_identical(result$generated_edges$id, ids)
+  expect_identical(result$generated_edges$original_edges, originals)
+  expect_identical(result$removed_edges$id, c(incoming, outgoing))
+  expect_identical(result$metadata_conflicts$generated_edge, ids)
+  expect_identical(result$metadata_conflicts$field, rep("Label", 10000L))
+  expect_identical(result$metadata_conflicts$original_value_1, rep("Input", 10000L))
+  expect_identical(result$metadata_conflicts$original_value_2, rep("Output", 10000L))
+  expect_identical(
+    result$edge_changes$action,
+    c(rep(c("Removed", rep("Generated", 100L)), 100L), rep("Removed", 100L))
+  )
+  expect_identical(
+    result$edge_changes$resulting_edge[result$edge_changes$action == "Generated"],
+    ids
+  )
+  expect_identical(result$summary$generated_edges, 10000L)
+  expect_identical(result$summary$metadata_conflicts, 10000L)
+  expect_identical(network$root, parent)
+})
+
+test_that("collapsing an isolated empty capsule retains empty report schemas", {
+  network <- collapse_test_network(
+    collapse_test_table("C1", "capsule"),
+    collapse_test_table()
+  )
+
+  result <- collapse_tracer_capsule(network, "C1")
+
+  expect_true(result$success)
+  expect_true(tracer_network_data_identical(result$network, new_tracer_network()))
+  empty_report <- .tracer_collapse_empty_report()
+  for (field in c("generated_edges", "updated_edges", "removed_edges", "metadata_conflicts", "edge_changes")) {
+    expect_identical(result[[field]], empty_report[[field]])
+  }
+})
+
 test_that("cycles are allowed unless external edges require missing boundaries", {
   cycle <- collapse_test_table(
     c("N1", "N2", "E1", "E2"),

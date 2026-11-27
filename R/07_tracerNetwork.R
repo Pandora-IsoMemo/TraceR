@@ -843,37 +843,29 @@ collapse_tracer_capsule <- function(network, path) {
     }
   }
 
-  generated_edges <- report$generated_edges
-  updated_edges <- report$updated_edges
-  removed_edges <- report$removed_edges
-  metadata_conflicts <- report$metadata_conflicts
-  edge_changes <- report$edge_changes
-  parent_result <- parent_data[FALSE, , drop = FALSE]
+  generated_edges <- list()
+  updated_edges <- list()
+  removed_edges <- list()
+  metadata_conflicts <- list()
+  edge_changes <- list()
+  parent_result <- list()
   metadata_columns <- setdiff(names(parent_data), c("ID", "From", "To"))
 
   add_removed_edge <- function(row) {
-    removed_edges <<- rbind(
-      removed_edges,
-      data.frame(
-        id = parent_data$ID[row],
-        from = parent_data$From[row],
-        to = parent_data$To[row],
-        stringsAsFactors = FALSE
-      )
+    removed_edges[[length(removed_edges) + 1L]] <<- c(
+      id = parent_data$ID[row],
+      from = parent_data$From[row],
+      to = parent_data$To[row]
     )
-    edge_changes <<- rbind(
-      edge_changes,
-      data.frame(
-        action = "Removed",
-        original_edges = parent_data$ID[row],
-        resulting_edge = "",
-        original_connections = paste0(
-          parent_data$ID[row], ": ", parent_data$From[row],
-          " -> ", parent_data$To[row]
-        ),
-        resulting_connection = "",
-        stringsAsFactors = FALSE
-      )
+    edge_changes[[length(edge_changes) + 1L]] <<- c(
+      action = "Removed",
+      original_edges = parent_data$ID[row],
+      resulting_edge = "",
+      original_connections = paste0(
+        parent_data$ID[row], ": ", parent_data$From[row],
+        " -> ", parent_data$To[row]
+      ),
+      resulting_connection = ""
     )
   }
 
@@ -889,27 +881,19 @@ collapse_tracer_capsule <- function(network, path) {
     output$ID <- id
     output$From <- from
     output$To <- to
-    parent_result <<- rbind(parent_result, output)
-    generated_edges <<- rbind(
-      generated_edges,
-      data.frame(
-        id = id,
-        from = from,
-        to = to,
-        original_edges = paste(original_ids, collapse = ", "),
-        stringsAsFactors = FALSE
-      )
+    parent_result[[length(parent_result) + 1L]] <<- output
+    generated_edges[[length(generated_edges) + 1L]] <<- c(
+      id = id,
+      from = from,
+      to = to,
+      original_edges = paste(original_ids, collapse = ", ")
     )
-    edge_changes <<- rbind(
-      edge_changes,
-      data.frame(
-        action = "Generated",
-        original_edges = paste(original_ids, collapse = ", "),
-        resulting_edge = id,
-        original_connections = paste(original_connections, collapse = "; "),
-        resulting_connection = paste0(id, ": ", from, " -> ", to),
-        stringsAsFactors = FALSE
-      )
+    edge_changes[[length(edge_changes) + 1L]] <<- c(
+      action = "Generated",
+      original_edges = paste(original_ids, collapse = ", "),
+      resulting_edge = id,
+      original_connections = paste(original_connections, collapse = "; "),
+      resulting_connection = paste0(id, ": ", from, " -> ", to)
     )
   }
 
@@ -920,17 +904,13 @@ collapse_tracer_capsule <- function(network, path) {
     if (first_missing) return(second)
     if (second_missing || identical(first, second)) return(first)
 
-    metadata_conflicts <<- rbind(
-      metadata_conflicts,
-      data.frame(
-        generated_edge = generated_id,
-        original_edges = paste(original_ids, collapse = ", "),
-        field = field,
-        original_value_1 = first,
-        original_value_2 = second,
-        result = "",
-        stringsAsFactors = FALSE
-      )
+    metadata_conflicts[[length(metadata_conflicts) + 1L]] <<- c(
+      generated_edge = generated_id,
+      original_edges = paste(original_ids, collapse = ", "),
+      field = field,
+      original_value_1 = first,
+      original_value_2 = second,
+      result = ""
     )
     ""
   }
@@ -938,12 +918,12 @@ collapse_tracer_capsule <- function(network, path) {
   for (row in seq_len(nrow(parent_data))) {
     if (row == capsule_row) {
       if (nrow(promoted) > 0L) {
-        parent_result <- rbind(parent_result, promoted)
+        parent_result[[length(parent_result) + 1L]] <- promoted
       }
       next
     }
     if (!row %in% affected_rows) {
-      parent_result <- rbind(parent_result, parent_data[row, , drop = FALSE])
+      parent_result[[length(parent_result) + 1L]] <- parent_data[row, , drop = FALSE]
       next
     }
 
@@ -970,29 +950,21 @@ collapse_tracer_capsule <- function(network, path) {
       output <- parent_data[row, , drop = FALSE]
       output$From <- combinations$from[[1L]]
       output$To <- combinations$to[[1L]]
-      parent_result <- rbind(parent_result, output)
-      updated_edges <- rbind(
-        updated_edges,
-        data.frame(
-          id = old_id,
-          old_from = old_from,
-          old_to = old_to,
-          from = output$From,
-          to = output$To,
-          stringsAsFactors = FALSE
-        )
+      parent_result[[length(parent_result) + 1L]] <- output
+      updated_edges[[length(updated_edges) + 1L]] <- c(
+        id = old_id,
+        old_from = old_from,
+        old_to = old_to,
+        from = output$From,
+        to = output$To
       )
-      edge_changes <- rbind(
-        edge_changes,
-        data.frame(
-          action = "Updated",
-          original_edges = old_id,
-          resulting_edge = old_id,
-          original_connections = paste0(old_id, ": ", old_from, " -> ", old_to),
-          resulting_connection = paste0(
-            old_id, ": ", output$From, " -> ", output$To
-          ),
-          stringsAsFactors = FALSE
+      edge_changes[[length(edge_changes) + 1L]] <- c(
+        action = "Updated",
+        original_edges = old_id,
+        resulting_edge = old_id,
+        original_connections = paste0(old_id, ": ", old_from, " -> ", old_to),
+        resulting_connection = paste0(
+          old_id, ": ", output$From, " -> ", output$To
         )
       )
     } else {
@@ -1013,17 +985,17 @@ collapse_tracer_capsule <- function(network, path) {
   if (is_empty &&
       length(pass_incoming_rows) > 0L &&
       length(pass_outgoing_rows) > 0L) {
-    parent_result <- parent_data[FALSE, , drop = FALSE]
-    generated_edges <- report$generated_edges
-    updated_edges <- report$updated_edges
-    removed_edges <- report$removed_edges
-    metadata_conflicts <- report$metadata_conflicts
-    edge_changes <- report$edge_changes
+    parent_result <- list()
+    generated_edges <- list()
+    updated_edges <- list()
+    removed_edges <- list()
+    metadata_conflicts <- list()
+    edge_changes <- list()
 
     for (row in seq_len(nrow(parent_data))) {
       if (row == capsule_row) next
       if (!row %in% affected_rows) {
-        parent_result <- rbind(parent_result, parent_data[row, , drop = FALSE])
+        parent_result[[length(parent_result) + 1L]] <- parent_data[row, , drop = FALSE]
       } else {
         add_removed_edge(row)
       }
@@ -1074,8 +1046,26 @@ collapse_tracer_capsule <- function(network, path) {
   }
 
   if (length(affected_rows) == 0L && is_empty) {
-    parent_result <- parent_data[-capsule_row, , drop = FALSE]
+    parent_result <- list(parent_data[-capsule_row, , drop = FALSE])
   }
+
+  parent_result <- if (length(parent_result) == 0L) {
+    parent_data[FALSE, , drop = FALSE]
+  } else {
+    do.call(rbind, parent_result)
+  }
+  bind_records <- function(records, empty) {
+    if (length(records) == 0L) {
+      empty
+    } else {
+      as.data.frame(do.call(rbind, records), stringsAsFactors = FALSE)
+    }
+  }
+  generated_edges <- bind_records(generated_edges, report$generated_edges)
+  updated_edges <- bind_records(updated_edges, report$updated_edges)
+  removed_edges <- bind_records(removed_edges, report$removed_edges)
+  metadata_conflicts <- bind_records(metadata_conflicts, report$metadata_conflicts)
+  edge_changes <- bind_records(edge_changes, report$edge_changes)
 
   candidate_parent <- new_tracer_table(parent_result)
   updated <- network
