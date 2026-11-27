@@ -51,7 +51,7 @@ Closing or restarting the Shiny session loses its checkpoint.
 | Network ZIP (`network.zip`) | The complete working network, including all capsule tables and hierarchy. |
 | Unsigned table download (`data.json`) | The currently selected table, including unsaved edits; it does not include descendant tables. |
 | Signed table download (`data-signed.json`) | The same selected-table payload plus an experimental RSA-SHA256 signature. |
-| Download Session (`.tracer`) | The currently selected table and application inputs in an unsigned DataTools bundle, not the saved checkpoint or full hierarchy. |
+| Download Session (`.tracer`) | The complete working network, selected capsule path, and application inputs in an unsigned DataTools bundle; it does not include the saved checkpoint. |
 
 The Network ZIP controls are in the sidebar. **Import Network** replaces the
 working hierarchy after confirmation when necessary; **Import ZIP as capsule**
@@ -59,9 +59,13 @@ adds an imported hierarchy beneath a new capsule at the selected level.
 
 The table download is labeled **Download** when no private key is loaded, or
 **Download JSON** alongside **Download Signed JSON** when a key is available.
-Table **Import** and **Import Session** are separate actions. Table JSON and
-session imports restore a table as the root level; use Network ZIP to exchange
-a complete hierarchy. Legacy graph JSON and graph-only sessions are unsupported.
+Table **Import** and **Import Session** are separate actions. Table JSON imports
+restore only that table as the root level, with empty child tables for any
+capsule rows. Session imports restore the full working hierarchy and
+application inputs; they restore the selected path when it has a checkpoint
+mapping, otherwise they select the nearest checkpointable ancestor (normally
+Root). The saved checkpoint is unchanged. Legacy graph JSON, graph-only
+sessions, and older table-only session bundles are unsupported.
 
 ### Capsule operations
 

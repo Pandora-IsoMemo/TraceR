@@ -94,7 +94,8 @@ checkpoint values clears dirty state without needing another Save.
 | Save selected path | Selected table and that level's structure checkpointed if validation has no errors | Updated at that path |
 | Reset selected path | Saved table/structure restored using the path map | Unchanged |
 | Load Example / Load Empty / Import Network ZIP | Entire working hierarchy replaced after dirty confirmation when necessary | Unchanged |
-| Accepted table JSON / session import | Imported table becomes a new root hierarchy after dirty confirmation | Unchanged |
+| Accepted table JSON import | Imported table becomes a new root hierarchy after dirty confirmation; capsule rows receive empty child tables | Unchanged |
+| Accepted session import | Full working network and selected path restored after dirty confirmation; application inputs are restored | Unchanged |
 | Any download | Unchanged | Unchanged |
 
 `tracer_network_save_table()` validates and saves the selected table with the
@@ -104,17 +105,19 @@ saved with its parent. A child path cannot be saved until its parent capsule is
 checkpointed. Reset uses the path map to restore the saved subtree, including
 deleted saved descendants, while removing unsaved additions.
 
-`request_replacement()` is the root's common gate for whole-network and
-table/session loads. It either applies a replacement immediately when clean or
+`request_replacement()` is the root's common gate for whole-network, table, and
+session loads. It either applies a replacement immediately when clean or
 stores it in `pending_replacement` and opens confirmation. Cancel discards the
 pending request, not the current network. `apply_replacement()` installs the
-network, resets selection to root and rebuilds the path map, requests scrolling
-to the top, and restores session inputs when supplied. Table JSON and session
-imports construct a root network from the imported table; capsule rows receive
-empty child tables. ZIP import reconstructs the full hierarchy, while
-Import-as-capsule inserts that hierarchy under a new capsule without replacing
-the current network. Reset has its own confirmation handler. Ordinary tab
-switching is not blocked.
+network and rebuilds the path map. For a session, it restores the saved
+selection when that path has a checkpoint mapping; otherwise it selects the
+nearest checkpointable ancestor, normally Root, while retaining the restored
+working network. Session inputs are restored as well, but the existing
+checkpoint is unchanged. Table JSON import constructs a root network from the
+imported table, so capsule rows receive empty child tables. ZIP import
+reconstructs the full hierarchy, while Import-as-capsule inserts that hierarchy
+under a new capsule without replacing the current network. Reset has its own
+confirmation handler. Ordinary tab switching is not blocked.
 
 ## Table model and validation
 

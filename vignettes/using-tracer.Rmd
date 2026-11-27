@@ -288,22 +288,24 @@ with a new signature. Unsigned imports are permitted but not authenticated.
 ## Download and import sessions
 
 The **Session** section is separate from network-table JSON. **Download Session**
-creates a DataTools `.tracer` bundle containing the currently selected working
-table and application inputs. Its controls include Notes and File name. Session
-downloads are unsigned and do not contain the full network hierarchy or saved
+creates a DataTools `.tracer` bundle containing the complete working network,
+the selected capsule path, and application inputs. Its controls include Notes
+and File name. Session downloads are unsigned and do not contain the saved
 checkpoint.
 
-**Import Session** restores the bundle's table as a new root table, along with
-matching application inputs. Capsule rows receive empty child tables. Dirty
-work requires replacement confirmation. The saved checkpoint is not imported
-or replaced, so the restored table may be unsaved relative to it. Old
-graph-only sessions are unsupported.
+**Import Session** restores the full working hierarchy and matching application
+inputs. It restores the selected path when that path has a checkpoint mapping;
+otherwise it selects the nearest checkpointable ancestor, normally Root, and
+keeps the session's working edits. Dirty work requires replacement
+confirmation. The saved checkpoint is not imported or replaced, so the restored
+network may be unsaved relative to it. Older table-only or graph-only sessions
+are unsupported.
 
-Session files may contain temporary widget/input state as well as useful settings;
-they are not an authenticated audit history. Unlike table JSON import, session
-restore checks table structure but can retain incomplete content, with validation
-feedback. Save may still be blocked and graph rendering unavailable until that
-content is corrected.
+Session files may contain temporary widget/input state as well as useful
+settings; they are not an authenticated audit history. Unlike table JSON
+import, session restore checks the network structure but can retain incomplete
+table content, with validation feedback. Save may still be blocked and graph
+rendering unavailable until that content is corrected.
 
 ## Current limits
 
