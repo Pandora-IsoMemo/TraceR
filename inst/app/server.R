@@ -198,12 +198,20 @@ shinyServer(function(input, output, session) {
       return(FALSE)
     }
 
-    checkpoint <- tracer_network_save_table(
-      working_network(),
-      saved_network(),
-      path_map(),
-      path
+    checkpoint <- tryCatch(
+      tracer_network_save_table(
+        working_network(),
+        saved_network(),
+        path_map(),
+        path
+      ),
+      error = function(error) {
+        show_messages("Could not save network table", conditionMessage(error), "error")
+        NULL
+      }
     )
+    if (is.null(checkpoint)) return(FALSE)
+
     saved_network(checkpoint$network)
     path_map(checkpoint$path_map)
     current_feedback <- operation_feedback()

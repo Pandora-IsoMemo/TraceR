@@ -301,6 +301,29 @@ test_that("navigation reconciles checkpoint paths for identically recreated caps
   }
 })
 
+test_that("saving an uncheckpointed child reports the error without stopping the server", {
+  network <- add_tracer_capsule(new_tracer_network(), "", "C1")
+  checkpoint <- new_tracer_network()
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    working_network(network)
+    saved_network(checkpoint)
+    path_map(tracer_network_path_map(network, checkpoint))
+    selected_path("C1")
+    current_table(get_tracer_table(network, "C1"))
+    session$flushReact()
+
+    expect_false(save_network_table("C1"))
+    expect_identical(saved_network(), checkpoint)
+    expect_no_error({
+      session$setInputs(`sidebar-save_table` = 1L)
+      session$flushReact()
+    })
+    expect_identical(saved_network(), checkpoint)
+  })
+})
+
 test_that("node and edge renames stay table-local and follow explicit Save and Reset", {
   network <- createExampleTracerNetwork()
   original_map <- tracer_network_path_map(network)
