@@ -283,15 +283,6 @@ tracer_network_to_zip <- function(network, file) {
 #' @details Defaults limit archives to 1,000 entries, 100 MiB of uncompressed
 #'   files, 110 MiB of ZIP data, 10 MiB per table, a 100:1 compression ratio,
 #'   and 64 capsule levels.
-#' @usage tracer_network_from_zip(
-#'   file,
-#'   max_entries = 1000L,
-#'   max_total_uncompressed = 100 * 1024^2,
-#'   max_archive_size = 110 * 1024^2,
-#'   max_table_size = 10 * 1024^2,
-#'   max_compression_ratio = 100,
-#'   max_depth = 64L
-#' )
 #' @return A validated `tracer_network`.
 #' @export
 tracer_network_from_zip <- function(

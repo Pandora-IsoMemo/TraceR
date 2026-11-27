@@ -6,12 +6,12 @@
 \usage{
 tracer_network_from_zip(
   file,
-  max_entries = 1000L,
-  max_total_uncompressed = 100 * 1024^2,
-  max_archive_size = 110 * 1024^2,
-  max_table_size = 10 * 1024^2,
-  max_compression_ratio = 100,
-  max_depth = 64L
+  max_entries = .tracer_network_zip_default_limits$max_entries,
+  max_total_uncompressed = .tracer_network_zip_default_limits$max_total_uncompressed,
+  max_archive_size = .tracer_network_zip_default_limits$max_archive_size,
+  max_table_size = .tracer_network_zip_default_limits$max_table_size,
+  max_compression_ratio = .tracer_network_zip_default_limits$max_compression_ratio,
+  max_depth = .tracer_network_zip_default_limits$max_depth
 )
 }
 \arguments{
