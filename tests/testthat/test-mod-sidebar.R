@@ -378,7 +378,7 @@ test_that("whole-network ZIP actions replace or nest a hierarchy", {
   })
 })
 
-test_that("session restoration reinstalls the full network and selected path", {
+test_that("session restoration selects a checkpointable ancestor when checkpoints differ", {
   network <- createExampleTracerNetwork()
   app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
 
@@ -392,8 +392,10 @@ test_that("session restoration reinstalls the full network and selected path", {
     session$flushReact()
 
     expect_identical(working_network(), network)
-    expect_identical(selected_path(), "C1")
-    expect_identical(current_table(), get_tracer_table(network, "C1"))
+    expect_identical(selected_path(), "")
+    expect_identical(current_table(), get_tracer_table(network, ""))
+    expect_true(save_network_table())
+    expect_true(tracer_network_data_identical(working_network(), saved_network()))
   })
 })
 

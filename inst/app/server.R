@@ -303,8 +303,32 @@ shinyServer(function(input, output, session) {
         saved_network()
       } else NULL
     ))
-    selected_path(replacement$selected_path)
-    current_table(get_tracer_table(replacement$network, replacement$selected_path))
+    replacement_path <- replacement$selected_path
+    while (!identical(replacement_path, "")) {
+      mapping_index <- match(replacement_path, path_map()$working_path)
+      if (!is.na(mapping_index) && !is.na(path_map()$saved_path[[mapping_index]])) break
+      replacement_path <- parent_capsule_path(replacement_path)
+    }
+    if (!identical(replacement_path, replacement$selected_path)) {
+      restored_label <- paste(
+        c("Root", strsplit(replacement_path, "/", fixed = TRUE)[[1L]]),
+        collapse = " / "
+      )
+      requested_label <- paste(
+        c("Root", strsplit(replacement$selected_path, "/", fixed = TRUE)[[1L]]),
+        collapse = " / "
+      )
+      replacement$notices <- c(
+        replacement$notices,
+        paste0(
+          "Restored at ", restored_label, " because ",
+          requested_label, " has no checkpoint in this workspace. ",
+          "The session's working edits are preserved."
+        )
+      )
+    }
+    selected_path(replacement_path)
+    current_table(get_tracer_table(replacement$network, replacement_path))
     operation_feedback(NULL)
     table_module$scroll_to_top()
     if (!is.null(replacement$inputs)) {
