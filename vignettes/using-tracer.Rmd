@@ -298,8 +298,9 @@ inputs. It restores the selected path when that path has a checkpoint mapping;
 otherwise it selects the nearest checkpointable ancestor, normally Root, and
 keeps the session's working edits. Dirty work requires replacement
 confirmation. The saved checkpoint is not imported or replaced, so the restored
-network may be unsaved relative to it. Older table-only or graph-only sessions
-are unsupported.
+network may be unsaved relative to it. Older table-only sessions are restored as
+root networks with empty child tables for capsules; graph-only sessions are
+unsupported.
 
 Session files may contain temporary widget/input state as well as useful
 settings; they are not an authenticated audit history. Unlike table JSON
