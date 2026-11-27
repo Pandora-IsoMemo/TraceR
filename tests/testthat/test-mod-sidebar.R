@@ -88,6 +88,52 @@ test_that("capsule tree selections return slash-separated paths", {
   )
 })
 
+test_that("capsule tree only rerenders for structural network changes", {
+  table_data <- new_tracer_table()$data
+  table_data[1, ] <- ""
+  table_data$ID[1] <- "N1"
+  table_data$Type[1] <- "node"
+  network <- add_tracer_capsule(
+    new_tracer_network(),
+    "",
+    "C1",
+    child_table = new_tracer_table(table_data)
+  )
+  current_network <- shiny::reactiveVal(network)
+  tree_update_count <- 0L
+  testthat::local_mocked_bindings(
+    updateTree = function(session, inputId, data) {
+      tree_update_count <<- tree_update_count + 1L
+    },
+    .package = "shinyTree"
+  )
+
+  shiny::testServer(
+    mod_sidebar_server,
+    args = list(
+      current_table = shiny::reactiveVal(new_tracer_table()),
+      root_inputs = shiny::reactiveValues(),
+      current_network = current_network,
+      selected_path = shiny::reactive("")
+    ),
+    {
+      session$flushReact()
+      initial_updates <- tree_update_count
+
+      edited_table <- get_tracer_table(current_network(), "C1")
+      edited_table$data$Label[1] <- "Edited label"
+      current_network(set_tracer_table(current_network(), "C1", edited_table))
+      session$flushReact()
+      expect_identical(tree_update_count, initial_updates)
+
+      updated_network <- add_tracer_capsule(current_network(), "", "C2")
+      current_network(updated_network)
+      session$flushReact()
+      expect_gt(tree_update_count, initial_updates)
+    }
+  )
+})
+
 test_that("selecting a capsule loads its table into the shared app state", {
   child_data <- new_tracer_table()$data
   child_data[1, ] <- ""

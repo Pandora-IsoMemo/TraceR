@@ -98,6 +98,16 @@ mod_sidebar_server <- function(
     tree_selection <- reactiveVal(NULL)
     tree_selection_request <- reactiveVal(0L)
     tree_refresh <- reactiveVal(0L)
+    capsule_tree_structure <- reactiveVal(NULL)
+
+    observeEvent(current_network(), {
+      network <- current_network()
+      paths <- tracer_network_paths(network)
+      capsule_tree_structure(stats::setNames(
+        lapply(paths, function(path) list_tracer_capsules(network, path)),
+        paths
+      ))
+    }, ignoreInit = FALSE)
 
     DataTools::downloadModelServer(
       "session_download",
@@ -120,18 +130,24 @@ mod_sidebar_server <- function(
       }
     })
 
-    build_capsule_tree <- function(path) {
-      capsule_ids <- list_tracer_capsules(current_network(), path)
+    build_capsule_tree <- function(path, tree_structure, selected_path) {
+      if (is.null(tree_structure)) return(list())
+      structure_index <- match(path, names(tree_structure))
+      capsule_ids <- if (is.na(structure_index)) {
+        character()
+      } else {
+        tree_structure[[structure_index]]
+      }
       children <- lapply(capsule_ids, function(capsule_id) {
         child_path <- if (identical(path, "")) {
           capsule_id
         } else {
           paste(path, capsule_id, sep = "/")
         }
-        selected <- identical(child_path, selected_path())
+        selected <- identical(child_path, selected_path)
         opened <- selected ||
-          startsWith(selected_path(), paste0(child_path, "/"))
-        descendants <- build_capsule_tree(child_path)
+          startsWith(selected_path, paste0(child_path, "/"))
+        descendants <- build_capsule_tree(child_path, tree_structure, selected_path)
         structure(
           descendants,
           sticon = "folder",
@@ -144,11 +160,11 @@ mod_sidebar_server <- function(
     }
 
     output$capsule_tree <- shinyTree::renderTree({
-      current_network()
+      tree_structure <- capsule_tree_structure()
       tree_refresh()
       path <- selected_path()
       root <- structure(
-        build_capsule_tree(""),
+        build_capsule_tree("", tree_structure, path),
         sticon = "home",
         stselected = identical(path, ""),
         stopened = TRUE
