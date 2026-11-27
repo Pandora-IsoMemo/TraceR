@@ -404,3 +404,36 @@ test_that("app collapse updates working state, saves, and resets with shared fee
     expect_identical(current_table()$data$Label[1], "")
   })
 })
+
+test_that("renaming a collapsed capsule parent rebases its feedback path", {
+  network <- collapse_test_network(
+    collapse_test_table("C1", "capsule"),
+    collapse_test_table("C2", "capsule"),
+    nested_tables = list("C1/C2" = collapse_test_table("N1", "node"))
+  )
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    working_network(network)
+    saved_network(network)
+    path_map(tracer_network_path_map(network))
+    selected_path("C1/C2")
+    current_table(get_tracer_table(network, "C1/C2"))
+    session$flushReact()
+
+    session$setInputs(`sidebar-collapse_capsule` = 1L)
+    session$flushReact()
+    session$setInputs(confirm_capsule_collapse = 1L)
+    session$flushReact()
+    expect_identical(operation_feedback()$parent_path, "C1")
+
+    session$setInputs(`sidebar-rename_capsule_id` = "Renamed", `sidebar-rename_capsule` = 1L)
+    session$flushReact()
+    expect_identical(operation_feedback()$parent_path, "Renamed")
+
+    expect_true(save_network_table("Renamed"))
+    expect_true(operation_feedback()$saved)
+    reset_network_table("Renamed")
+    expect_null(operation_feedback())
+  })
+})

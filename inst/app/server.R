@@ -561,6 +561,14 @@ shinyServer(function(input, output, session) {
     tryCatch({
       updated <- rename_tracer_capsule(working_network(), path, new_id)
       path_map(tracer_network_rebase_path_map(path_map(), path, new_path))
+      current_feedback <- operation_feedback()
+      if (!is.null(current_feedback) &&
+          (identical(current_feedback$parent_path, path) ||
+           startsWith(current_feedback$parent_path, paste0(path, "/")))) {
+        suffix <- substring(current_feedback$parent_path, nchar(path) + 1L)
+        current_feedback$parent_path <- paste0(new_path, suffix)
+        operation_feedback(current_feedback)
+      }
       working_network(updated)
       select_path(new_path)
     }, error = function(error) {
