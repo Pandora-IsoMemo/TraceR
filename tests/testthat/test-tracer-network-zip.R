@@ -17,6 +17,53 @@ make_zip_test_network <- function() {
   set_tracer_table(network, "Top/Nested", leaf)
 }
 
+make_zip_entry_fixture <- function(filenames, types = rep("file", length(filenames))) {
+  archive <- tempfile(fileext = ".zip")
+  withr::defer(unlink(archive), envir = parent.frame())
+  uint <- function(values, size) {
+    as.raw(unlist(lapply(values, function(value) {
+      floor(value / 256^(seq_len(size) - 1L)) %% 256
+    })))
+  }
+  modes <- c(file = "100644", directory = "040755", symlink = "120777", FIFO = "010644")
+  local_entries <- raw()
+  directory <- raw()
+
+  # Empty stored entries allow malformed metadata without filesystem-specific
+  # symlink support or ZIP tools that normalize unsafe and duplicate paths.
+  for (index in seq_along(filenames)) {
+    filename <- charToRaw(enc2utf8(filenames[index]))
+    offset <- length(local_entries)
+    local_entries <- c(
+      local_entries,
+      uint(0x04034b50, 4L),
+      uint(c(20, 0, 0, 0, 0), 2L),
+      uint(c(0, 0, 0), 4L),
+      uint(c(length(filename), 0), 2L),
+      filename
+    )
+    directory <- c(
+      directory,
+      uint(0x02014b50, 4L),
+      uint(c(0x0314, 20, 0, 0, 0, 0), 2L),
+      uint(c(0, 0, 0), 4L),
+      uint(c(length(filename), 0, 0, 0, 0), 2L),
+      uint(strtoi(modes[[types[index]]], base = 8L) * 65536, 4L),
+      uint(offset, 4L),
+      filename
+    )
+  }
+  writeBin(c(
+    local_entries,
+    directory,
+    uint(0x06054b50, 4L),
+    uint(c(0, 0, length(filenames), length(filenames)), 2L),
+    uint(c(length(directory), length(local_entries)), 4L),
+    uint(0, 2L)
+  ), archive)
+  archive
+}
+
 test_that("whole-network ZIP export and import preserve nested tables", {
   network <- make_zip_test_network()
   archive <- tempfile(fileext = ".zip")
@@ -51,6 +98,80 @@ test_that("whole-network ZIP import enforces configured security limits", {
   expect_error(tracer_network_from_zip(archive, max_total_uncompressed = -1), "finite non-negative")
   expect_error(.tracer_zip_path("../data.json", FALSE), "empty, '.' or '..'")
   expect_error(.tracer_zip_path("Top\\\\data.json", FALSE), "absolute or invalid")
+})
+
+test_that("ZIP import rejects symlink and unsupported entries before extraction", {
+  extraction_calls <- 0L
+  testthat::local_mocked_bindings(
+    unzip = function(...) {
+      extraction_calls <<- extraction_calls + 1L
+      stop("Unexpected ZIP extraction.")
+    },
+    .package = "zip"
+  )
+
+  for (type in c("symlink", "FIFO")) {
+    archive <- make_zip_entry_fixture(
+      c("data.json", "Top/data.json"), c("file", type)
+    )
+    entries <- zip::zip_list(archive)
+    expect_identical(entries$filename, c("data.json", "Top/data.json"))
+    expect_identical(entries$type, c("file", type))
+
+    expect_error(tracer_network_from_zip(archive), "symlink or unsupported entry type")
+  }
+  expect_identical(extraction_calls, 0L)
+})
+
+test_that("ZIP import rejects duplicate and case-colliding entries before extraction", {
+  extraction_calls <- 0L
+  testthat::local_mocked_bindings(
+    unzip = function(...) {
+      extraction_calls <<- extraction_calls + 1L
+      stop("Unexpected ZIP extraction.")
+    },
+    .package = "zip"
+  )
+  fixtures <- list(
+    list(filenames = c("data.json", "data.json"), types = c("file", "file")),
+    list(filenames = c("data.json", "DATA.json"), types = c("file", "file")),
+    list(filenames = c("data.json", "Top/", "top/"), types = c("file", "directory", "directory"))
+  )
+  for (fixture in fixtures) {
+    archive <- make_zip_entry_fixture(fixture$filenames, fixture$types)
+    entries <- zip::zip_list(archive)
+    expect_identical(entries$filename, fixture$filenames)
+    expect_identical(entries$type, fixture$types)
+
+    expect_error(tracer_network_from_zip(archive), "duplicate or case-colliding entry paths")
+  }
+  expect_identical(extraction_calls, 0L)
+})
+
+test_that("ZIP import rejects traversal and absolute paths before extraction", {
+  extraction_calls <- 0L
+  testthat::local_mocked_bindings(
+    unzip = function(...) {
+      extraction_calls <<- extraction_calls + 1L
+      stop("Unexpected ZIP extraction.")
+    },
+    .package = "zip"
+  )
+  unsafe_paths <- c("../data.json", "network/../../data.json", "/data.json", "C:/data.json", "Top\\data.json")
+  for (path in unsafe_paths) {
+    archive <- make_zip_entry_fixture(c("data.json", path))
+    entries <- zip::zip_list(archive)
+    expect_identical(entries$filename, c("data.json", path))
+    expect_identical(entries$type, c("file", "file"))
+    message <- if (grepl("..", path, fixed = TRUE)) {
+      "empty, '.' or '..'"
+    } else {
+      "absolute or invalid entry path"
+    }
+
+    expect_error(tracer_network_from_zip(archive), message, fixed = TRUE)
+  }
+  expect_identical(extraction_calls, 0L)
 })
 
 test_that("a network can be imported as a nested capsule", {

@@ -121,6 +121,61 @@ test_that("selecting a capsule loads its table into the shared app state", {
   })
 })
 
+test_that("navigation reconciles checkpoint paths for identically recreated capsules", {
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  for (action in c("save", "discard")) {
+    shiny::testServer(app$serverFuncSource(), {
+      session$flushReact()
+      session$setInputs(`sidebar-new_capsule_id` = "C1", `sidebar-add_capsule` = 1L)
+      session$setInputs(`sidebar-save_table` = 1L)
+      expect_false(unsaved_changes())
+      navigate_to("C1")
+      session$flushReact()
+
+      session$setInputs(`sidebar-delete_capsule` = 1L)
+      expect_identical(selected_path(), "")
+      session$setInputs(`sidebar-add_capsule` = 2L)
+      expect_true(tracer_network_data_identical(working_network(), saved_network()))
+      expect_true(is.na(path_map()$saved_path[match("C1", path_map()$working_path)]))
+      expect_false(unsaved_changes())
+
+      navigate_to("C1")
+      session$flushReact()
+      expect_identical(selected_path(), "C1")
+      expect_null(pending_navigation())
+      expect_identical(path_map(), tracer_network_path_map(working_network(), saved_network()))
+      expect_no_error(session$setInputs(`sidebar-save_table` = 2L))
+
+      edited_data <- new_tracer_table()$data
+      edited_data[1, ] <- ""
+      edited_data$ID[1] <- "N1"
+      edited_data$Label[1] <- "Edited node"
+      edited_data$Type[1] <- "node"
+      edited_table <- new_tracer_table(edited_data)
+      current_table(edited_table)
+      session$flushReact()
+      navigate_to("")
+      expect_identical(pending_navigation(), "")
+      expect_identical(selected_path(), "C1")
+
+      if (action == "save") {
+        expect_no_error(session$setInputs(save_navigation = 1L))
+      } else {
+        expect_no_error(session$setInputs(discard_navigation = 1L))
+      }
+      expect_identical(selected_path(), "")
+      expect_null(pending_navigation())
+      expect_identical(
+        get_tracer_table(working_network(), "C1"),
+        if (action == "save") edited_table else new_tracer_table()
+      )
+      expect_true(tracer_network_data_identical(working_network(), saved_network()))
+      expect_false(unsaved_changes())
+    })
+  }
+})
+
 test_that("whole-network ZIP actions replace or nest a hierarchy", {
   imported_network <- add_tracer_capsule(new_tracer_network(), "", "ImportedChild")
   archive <- tempfile(fileext = ".zip")

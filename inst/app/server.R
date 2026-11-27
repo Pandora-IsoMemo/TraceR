@@ -273,6 +273,7 @@ shinyServer(function(input, output, session) {
   navigate_to <- function(path) {
     if (identical(path, selected_path())) return(invisible(NULL))
     if (!isTRUE(unsaved_changes())) {
+      path_map(tracer_network_path_map(working_network(), saved_network()))
       select_path(path)
       return(invisible(NULL))
     }
