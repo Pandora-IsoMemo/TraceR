@@ -846,7 +846,7 @@ shinyServer(function(input, output, session) {
       network <- new_tracer_network(imported_network$root, imported_network$tables)
       restored_path <- session_data[["selected_path"]]
       if (!is.character(restored_path) || length(restored_path) != 1L ||
-          is.na(restored_path) || !.tracer_network_valid_path(restored_path) ||
+          is.na(restored_path) ||
           !restored_path %in% tracer_network_paths(network)) {
         stop("The session's selected_path does not identify a network table.")
       }
