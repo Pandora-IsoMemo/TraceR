@@ -18,7 +18,7 @@ tagList(
       sidebarLayout(
         sidebarPanel(
           width = 2,
-          style = "position:fixed; width:14%; max-width:240px; overflow-y:auto; height:88%",
+          style = "position:sticky; top:80px; overflow-y:auto; max-height:88vh",
           mod_sidebar_ui("sidebar")
         ),
         mainPanel(
