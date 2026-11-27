@@ -21,4 +21,6 @@ A list with updated \code{network} and \code{path_map} components.
 \description{
 Restores the selected table's saved structure. Descendant working data is
 retained across capsule renames; deleted saved subtrees are restored.
+Retained descendants keep their checkpoint mappings, including pending
+renames and unsaved additions, while moved working prefixes are rebased.
 }

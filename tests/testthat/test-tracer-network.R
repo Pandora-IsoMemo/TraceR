@@ -244,3 +244,113 @@ test_that("resetting deletion restores the saved subtree and additions reset awa
   reset_added <- tracer_network_reset_table(added, reset$network, added_map, "")
   expect_false("C2" %in% names(reset_added$network$tables))
 })
+
+test_that("ancestor checkpoints retain pending descendant renames and additions", {
+  for (ancestor in c("", "Outer")) {
+    saved <- new_tracer_network()
+    if (nzchar(ancestor)) saved <- add_tracer_capsule(saved, "", ancestor)
+    child_path <- .tracer_network_path_join(ancestor, "C1")
+    saved <- add_tracer_capsule(saved, ancestor, "C1")
+    saved <- add_tracer_capsule(saved, child_path, "C2")
+    nested_path <- paste0(child_path, "/C2")
+    saved <- add_tracer_capsule(saved, nested_path, "C3")
+    renamed_path <- paste0(child_path, "/Renamed")
+    working <- rename_tracer_capsule(saved, nested_path, "Renamed")
+    path_map <- tracer_network_rebase_path_map(
+      tracer_network_path_map(saved), nested_path, renamed_path
+    )
+    working <- add_tracer_capsule(working, child_path, "Added")
+    path_map <- tracer_network_register_paths(path_map, working, paste0(child_path, "/Added"))
+
+    for (operation in c("save", "reset")) {
+      result <- if (operation == "save") {
+        tracer_network_save_table(working, saved, path_map, ancestor)
+      } else {
+        tracer_network_reset_table(working, saved, path_map, ancestor)
+      }
+      checkpoint <- if (operation == "save") result$network else saved
+      retained_working <- if (operation == "save") working else result$network
+
+      expect_setequal(result$path_map$working_path, path_map$working_path)
+      expect_identical(
+        result$path_map$saved_path[match(path_map$working_path, result$path_map$working_path)],
+        path_map$saved_path
+      )
+      expect_identical(retained_working, working)
+      expect_error(
+        tracer_network_save_table(retained_working, checkpoint, result$path_map, paste0(child_path, "/Added")),
+        "Save the parent capsule"
+      )
+      reset_child <- tracer_network_reset_table(
+        retained_working, checkpoint, result$path_map, renamed_path
+      )
+      expect_identical(
+        get_tracer_table(reset_child$network, renamed_path),
+        get_tracer_table(saved, nested_path)
+      )
+      saved_child <- tracer_network_save_table(
+        retained_working, checkpoint, result$path_map, renamed_path
+      )
+      expect_true(tracer_network_data_identical(saved_child$network, checkpoint))
+
+      saved_parent <- tracer_network_save_table(
+        retained_working, checkpoint, result$path_map, child_path
+      )
+      expect_true(tracer_network_data_identical(saved_parent$network, working))
+      expect_equal(as.list(saved_parent$path_map), as.list(tracer_network_path_map(working)))
+    }
+  }
+})
+
+test_that("checkpointing a renamed child rebases only the moved mapping prefixes", {
+  saved <- new_tracer_network()
+  saved <- add_tracer_capsule(saved, "", "C1")
+  saved <- add_tracer_capsule(saved, "", "C10")
+  saved <- add_tracer_capsule(saved, "C1", "C2")
+  saved <- add_tracer_capsule(saved, "C1/C2", "C3")
+  working <- rename_tracer_capsule(saved, "C1/C2", "Renamed")
+  path_map <- tracer_network_rebase_path_map(
+    tracer_network_path_map(saved), "C1/C2", "C1/Renamed"
+  )
+  working <- add_tracer_capsule(working, "C1/Renamed", "Added")
+  path_map <- tracer_network_register_paths(path_map, working, "C1/Renamed/Added")
+  working <- rename_tracer_capsule(working, "C1", "Moved")
+  path_map <- tracer_network_rebase_path_map(path_map, "C1", "Moved")
+
+  checkpoint <- tracer_network_save_table(working, saved, path_map, "")
+  expect_identical(
+    checkpoint$path_map$saved_path[
+      match(c("Moved/Renamed", "Moved/Renamed/C3", "Moved/Renamed/Added", "C10"),
+            checkpoint$path_map$working_path)
+    ],
+    c("Moved/C2", "Moved/C2/C3", NA_character_, "C10")
+  )
+  expect_no_error(tracer_network_reset_table(working, checkpoint$network, checkpoint$path_map, "Moved/Renamed"))
+  expect_no_error(tracer_network_save_table(working, checkpoint$network, checkpoint$path_map, "Moved/Renamed"))
+
+  reset <- tracer_network_reset_table(working, saved, path_map, "")
+  expected_map <- tracer_network_rebase_path_map(path_map, "Moved", "C1")
+  expect_setequal(reset$path_map$working_path, expected_map$working_path)
+  expect_identical(
+    reset$path_map$saved_path[match(expected_map$working_path, reset$path_map$working_path)],
+    expected_map$saved_path
+  )
+  expect_identical(
+    get_tracer_table(reset$network, "C1/Renamed"),
+    get_tracer_table(working, "Moved/Renamed")
+  )
+  expect_no_error(tracer_network_reset_table(reset$network, saved, reset$path_map, "C1/Renamed"))
+  expect_no_error(tracer_network_save_table(reset$network, saved, reset$path_map, "C1/Renamed"))
+})
+
+test_that("saving a newly added child checkpoints its complete subtree", {
+  saved <- new_tracer_network()
+  working <- add_tracer_capsule(saved, "", "Added")
+  working <- add_tracer_capsule(working, "Added", "Nested")
+  path_map <- tracer_network_register_paths(tracer_network_path_map(saved), working, "Added")
+
+  checkpoint <- tracer_network_save_table(working, saved, path_map, "")
+
+  expect_identical(checkpoint$network, working)
+  expect_equal(as.list(checkpoint$path_map), as.list(tracer_network_path_map(working)))
+})

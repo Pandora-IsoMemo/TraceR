@@ -1311,7 +1311,7 @@ tracer_network_collapse_path_map <- function(path_map, old_path, new_network) {
   path_map$saved_path[matches]
 }
 
-.tracer_network_map_replace_subtree <- function(path_map, working_path, saved_path, subtree) {
+.tracer_network_map_replace_subtree <- function(path_map, working_path, saved_path, subtree, retained_map) {
   remove <- if (identical(working_path, "")) {
     rep(TRUE, nrow(path_map))
   } else {
@@ -1339,6 +1339,9 @@ tracer_network_collapse_path_map <- function(path_map, old_path, new_network) {
   saved_paths <- vapply(relative_paths, function(relative_path) {
     if (identical(relative_path, "")) saved_path else .tracer_network_path_join(saved_path, relative_path)
   }, character(1))
+  matches <- match(working_paths, retained_map$working_path)
+  mapped <- !is.na(matches)
+  saved_paths[mapped] <- retained_map$saved_path[matches[mapped]]
   rbind(
     retained,
     data.frame(
@@ -1451,6 +1454,8 @@ tracer_network_drop_paths <- function(path_map, path) {
 #'
 #' Descendant table contents are copied from the checkpoint when their paths
 #' are unchanged or renamed. A newly added subtree is saved with the parent.
+#' Retained descendants keep pending rename and unsaved-addition mappings;
+#' only checkpoint prefixes moved by this save are rebased.
 #'
 #' @param working_network The current working network.
 #' @param saved_network The current checkpoint network.
@@ -1470,6 +1475,7 @@ tracer_network_save_table <- function(working_network, saved_network, path_map, 
   }
   working_parent <- get_tracer_table(working_network, path)
   child_tables <- list()
+  retained_map <- path_map[FALSE, , drop = FALSE]
 
   for (capsule_id in list_tracer_capsules(working_network, path)) {
     working_child_path <- .tracer_network_path_join(path, capsule_id)
@@ -1478,6 +1484,22 @@ tracer_network_save_table <- function(working_network, saved_network, path_map, 
       .tracer_network_extract_subtree(working_network, working_child_path)
     } else {
       .tracer_network_extract_subtree(saved_network, child_saved_path)
+    }
+    if (!is.na(child_saved_path)) {
+      child_map <- path_map[
+        path_map$working_path == working_child_path |
+          startsWith(path_map$working_path, paste0(working_child_path, "/")),
+        ,
+        drop = FALSE
+      ]
+      moved <- !is.na(child_map$saved_path) &
+        (child_map$saved_path == child_saved_path |
+           startsWith(child_map$saved_path, paste0(child_saved_path, "/")))
+      child_map$saved_path[moved] <- paste0(
+        .tracer_network_path_join(saved_path, capsule_id),
+        substring(child_map$saved_path[moved], nchar(child_saved_path) + 1L)
+      )
+      retained_map <- rbind(retained_map, child_map)
     }
     child_tables[[capsule_id]] <- child_subtree$root
     for (relative_path in names(child_subtree$tables)) {
@@ -1495,7 +1517,8 @@ tracer_network_save_table <- function(working_network, saved_network, path_map, 
     path_map,
     path,
     saved_path,
-    .tracer_network_extract_subtree(working_network, path)
+    .tracer_network_extract_subtree(working_network, path),
+    retained_map
   )
 
   list(network = updated_saved, path_map = updated_map)
@@ -1505,6 +1528,8 @@ tracer_network_save_table <- function(working_network, saved_network, path_map, 
 #'
 #' Restores the selected table's saved structure. Descendant working data is
 #' retained across capsule renames; deleted saved subtrees are restored.
+#' Retained descendants keep their checkpoint mappings, including pending
+#' renames and unsaved additions, while moved working prefixes are rebased.
 #'
 #' @param working_network The current working network.
 #' @param saved_network The current checkpoint network.
@@ -1520,6 +1545,7 @@ tracer_network_reset_table <- function(working_network, saved_network, path_map,
 
   saved_subtree <- .tracer_network_extract_subtree(saved_network, saved_path)
   child_tables <- list()
+  retained_map <- path_map[FALSE, , drop = FALSE]
   for (capsule_id in list_tracer_capsules(saved_network, saved_path)) {
     saved_child_path <- .tracer_network_path_join(saved_path, capsule_id)
     matches <- which(!is.na(path_map$saved_path) & path_map$saved_path == saved_child_path)
@@ -1530,6 +1556,21 @@ tracer_network_reset_table <- function(working_network, saved_network, path_map,
       .tracer_network_extract_subtree(working_network, path_map$working_path[matches])
     } else {
       .tracer_network_extract_subtree(saved_network, saved_child_path)
+    }
+    if (length(matches) == 1L) {
+      working_child_path <- path_map$working_path[matches]
+      child_map <- path_map[
+        path_map$working_path == working_child_path |
+          startsWith(path_map$working_path, paste0(working_child_path, "/")),
+        ,
+        drop = FALSE
+      ]
+      child_map <- tracer_network_rebase_path_map(
+        child_map,
+        working_child_path,
+        .tracer_network_path_join(path, capsule_id)
+      )
+      retained_map <- rbind(retained_map, child_map)
     }
     child_tables[[capsule_id]] <- child_subtree$root
     for (relative_path in names(child_subtree$tables)) {
@@ -1543,6 +1584,8 @@ tracer_network_reset_table <- function(working_network, saved_network, path_map,
     class = "tracer_network"
   )
   updated_working <- .tracer_network_replace_subtree(working_network, path, reset_subtree)
-  updated_map <- .tracer_network_map_replace_subtree(path_map, path, saved_path, reset_subtree)
+  updated_map <- .tracer_network_map_replace_subtree(
+    path_map, path, saved_path, reset_subtree, retained_map
+  )
   list(network = updated_working, path_map = updated_map)
 }

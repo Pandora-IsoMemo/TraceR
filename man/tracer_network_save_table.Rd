@@ -21,4 +21,6 @@ A list with updated \code{network} and \code{path_map} components.
 \description{
 Descendant table contents are copied from the checkpoint when their paths
 are unchanged or renamed. A newly added subtree is saved with the parent.
+Retained descendants keep pending rename and unsaved-addition mappings;
+only checkpoint prefixes moved by this save are rebased.
 }
