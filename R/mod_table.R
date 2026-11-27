@@ -29,6 +29,15 @@ mod_table_ui <- function(id) {
     uiOutput(ns("feedback")),
     uiOutput(ns("validation")),
     DT::DTOutput(ns("table")),
+    tags$hr(),
+    tags$h4("Table JSON"),
+    fluidRow(
+      column(
+        3,
+        uiOutput(ns("table_download_controls")),
+        DataTools::importUI(ns("table_import"), label = "Import (Signed) JSON")
+      )
+    ),
     tags$style(htmltools::HTML("#table-table .dataTables_scrollBody tbody td { height: 1.5em; }")),
     tags$script(htmltools::HTML("
       Shiny.addCustomMessageHandler('traceRScrollTable', function(message) {
@@ -67,14 +76,21 @@ mod_table_ui <- function(id) {
 #' Table module server
 #'
 #' Cell edits and row operations update the supplied shared table reactive.
-#' Invalid intermediate content is retained and reported for the Network
-#' module to handle.
+#' Renaming a node with a valid, unique ID updates matching edge endpoints in
+#' the same table atomically. Renaming an edge changes only its ID.
+#' Invalid ID renames are rejected with feedback. Other invalid intermediate
+#' content is retained and reported for the Network
+#' module to handle. The module also provides network-table JSON download
+#' (signed when a private key is supplied) and import.
 #'
 #' @param id Module ID
 #' @param current_table Reactive value containing the shared `tracer_table`
-#' @return `NULL`, invisibly
+#' @param private_key Optional RSA private key for signed table downloads
+#' @return A list with `scroll_to_top()`, the `table_import` reactive, and the
+#'   monotonically increasing `table_import_request_id` used to distinguish
+#'   repeated imports.
 #' @export
-mod_table_server <- function(id, current_table) {
+mod_table_server <- function(id, current_table, private_key = NULL) {
   moduleServer(id, function(input, output, session) {
     feedback <- reactiveVal(NULL)
     column_names <- reactiveVal(isolate(names(current_table()$data)))
@@ -166,7 +182,46 @@ mod_table_server <- function(id, current_table) {
 
     observeEvent(input$table_cell_edit, {
       edit <- input$table_cell_edit
-      data <- DT::editData(current_table()$data, edit, rownames = FALSE)
+      current <- current_table()
+      row <- edit$row
+      column <- edit$col + 1L
+      field <- names(current$data)[column]
+
+      if (row >= 1L && row <= nrow(current$data) &&
+          identical(field, "ID") && identical(current$data$Type[row], "capsule")) {
+        feedback(list(type = "warning", text = "Rename capsules using the capsule controls."))
+        DT::replaceData(proxy, current$data, rownames = FALSE,
+                        resetPaging = FALSE, clearSelection = "none")
+        return()
+      }
+      if (row >= 1L && row <= nrow(current$data) && identical(field, "Type")) {
+        old_type <- current$data$Type[row]
+        if (identical(old_type, "capsule") || identical(edit$value, "capsule")) {
+          feedback(list(type = "warning", text = "Create or remove capsules using the capsule controls."))
+          DT::replaceData(proxy, current$data, rownames = FALSE,
+                          resetPaging = FALSE, clearSelection = "none")
+          return()
+        }
+      }
+
+      if (row >= 1L && row <= nrow(current$data) &&
+          identical(field, "ID") && current$data$Type[row] %in% c("node", "edge")) {
+        renamed <- tryCatch(
+          .tracer_table_rename_id(current, row, edit$value),
+          error = function(error) error
+        )
+        if (inherits(renamed, "error")) {
+          feedback(list(type = "warning", text = conditionMessage(renamed)))
+          DT::replaceData(proxy, current$data, rownames = FALSE,
+                          resetPaging = FALSE, clearSelection = "none")
+          return()
+        }
+        current_table(renamed$table)
+        feedback(if (is.null(renamed$notice)) NULL else list(type = "warning", text = renamed$notice))
+        return()
+      }
+
+      data <- DT::editData(current$data, edit, rownames = FALSE)
       current_table(new_tracer_table(data))
     })
 
@@ -185,6 +240,11 @@ mod_table_server <- function(id, current_table) {
     observeEvent(input$delete_row, {
       selected <- input$table_rows_selected
       if (length(selected) != 1L || selected < 1L || selected > nrow(current_table()$data)) {
+        return()
+      }
+
+      if (identical(current_table()$data$Type[selected], "capsule")) {
+        feedback(list(type = "warning", text = "Delete capsules using the capsule controls."))
         return()
       }
 
@@ -218,6 +278,92 @@ mod_table_server <- function(id, current_table) {
       feedback(NULL)
     })
 
-    list(scroll_to_top = function() request_scroll("top"))
+    output$table_download_controls <- renderUI({
+      if (is.null(private_key)) {
+        return(downloadButton(session$ns("download_table"), "Download", style = "width: 100%;"))
+      }
+
+      tagList(
+        downloadButton(session$ns("download_table"), "Download JSON", style = "width: 100%;"),
+        tags$br(), tags$br(),
+        downloadButton(session$ns("download_signed_table"),
+                       "Download Signed JSON",
+                       style = "width: 100%;"),
+        tags$div(
+          class = "alert alert-warning",
+          role = "alert",
+          style = "margin-top: 10px; padding: 10px; font-size: 13px;",
+          tags$strong("Experimental: Signed JSON is testing only."),
+          tags$br(),
+          "Future versions may not verify current signed files. Keep an unsigned JSON copy."
+        ),
+        tags$br()
+      )
+    })
+
+    table_download_content <- function(file, signed = FALSE) {
+      table <- current_table()
+      validation <- validate_tracer_table(table)
+      if (nrow(validation$errors) > 0L) {
+        shiny::showNotification(
+          paste(c("Cannot download an invalid network table:", validation$errors$message), collapse = "\n"),
+          type = "error",
+          duration = NULL
+        )
+        stop("Network table has validation errors.", call. = FALSE)
+      }
+      if (nrow(validation$warnings) > 0L) {
+        shiny::showNotification(
+          paste(c("Unresolved edge references:", validation$warnings$message), collapse = "\n"),
+          type = "warning",
+          duration = NULL
+        )
+      }
+
+      json <- if (signed) {
+        tracer_table_to_signed_json(table, private_key)
+      } else {
+        tracer_table_to_json(table)
+      }
+      writeBin(charToRaw(enc2utf8(json)), file)
+    }
+
+    output$download_table <- downloadHandler(
+      filename = function() "data.json",
+      content = function(file) table_download_content(file)
+    )
+    output$download_signed_table <- downloadHandler(
+      filename = function() "data-signed.json",
+      content = function(file) table_download_content(file, signed = TRUE)
+    )
+
+    imported_table_json <- DataTools::importServer(
+      "table_import",
+      title = "Import Network Table",
+      importType = "list",
+      defaultSource = "file",
+      ckanFileTypes = "json",
+      options = DataTools::importOptions(rPackageName = config()[["rPackageName"]])
+    )
+    table_import_request <- reactiveVal(0L)
+    observeEvent(input[["table_import-accept"]], {
+      session$onFlushed(function() {
+        table_import_request(isolate(table_import_request()) + 1L)
+      }, once = TRUE)
+    }, ignoreInit = TRUE)
+    table_import <- reactive({
+      request_id <- table_import_request()
+      req(request_id > 0L)
+      imported <- isolate(imported_table_json())
+      req(length(imported) > 0L)
+      list(request_id = request_id, data = imported)
+    })
+
+
+    list(
+      scroll_to_top = function() request_scroll("top"),
+      table_import = table_import,
+      table_import_request_id = reactive(table_import_request())
+    )
   })
 }

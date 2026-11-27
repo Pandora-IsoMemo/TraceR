@@ -16,7 +16,9 @@ RUN apt-get update \
     && apt-get autoclean -y \
     && rm -rf /var/lib/apt/lists/*
 
+# The zip install line below can be removed once inwt/r-shiny is upgraded to a version shipping zip >= 2.3.3
 RUN echo "options(repos = c(getOption('repos'), PANDORA = 'https://Pandora-IsoMemo.github.io/drat/'))" >> /usr/local/lib/R/etc/Rprofile.site \
+    && Rscript -e "remotes::install_version('zip', version = '2.3.3', repos = 'https://cloud.r-project.org', upgrade = 'never'); stopifnot(packageVersion('zip') == '2.3.3')" \
     && installPackage
     #DiagrammeRsvg
 

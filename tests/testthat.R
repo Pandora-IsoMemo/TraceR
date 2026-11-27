@@ -10,3 +10,8 @@ library(testthat)
 library(TraceR)
 
 test_check("TraceR")
+
+# Note when working with vscode:
+# If running the tests localy fails (the interactive R terminal gets stuck), try running them in
+# a fresh, non-interactive R process (bash terminal):
+# Rscript -e 'devtools::test()'

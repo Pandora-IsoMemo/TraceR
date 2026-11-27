@@ -122,9 +122,9 @@ test_that("blank rows are allowed, while populated rows require IDs and types", 
   expect_true(any(result$errors$row == 1L & result$errors$field == "Type"))
 })
 
-test_that("IDs must be populated and unique but have no extra naming restrictions", {
+test_that("IDs must be populated and unique while single underscores remain valid", {
   data <- make_test_table_data(
-    ids = c("same", "same", NA_character_, "", "  ", "path/with.dots_and_underscores"),
+    ids = c("same", "same", NA_character_, "", "  ", "path/with_underscores"),
     types = rep("node", 6)
   )
   data$Label[3:5] <- "populated"
@@ -251,4 +251,81 @@ test_that("example tracer table is deterministic, valid, and converts", {
   expect_equal(nrow(graph_tables$nodes), 6L)
   expect_equal(nrow(graph_tables$edges), 5L)
   expect_equal(sum(graph_tables$nodes$tracer_type == "capsule"), 1L)
+})
+
+test_that("node ID renames update only exact edge endpoints and preserve metadata", {
+  data <- make_test_table_data(
+    c("N1", "N10", "Incoming", "Outgoing", "Loop", "Other"),
+    c("node", "node", rep("edge", 4L)),
+    from = c("N1", NA_character_, "N10", "N1", "N1", "N10"),
+    to = c(NA_character_, NA_character_, "N1", "N10", "N1", "N10")
+  )
+  data[["Unique identifier"]] <- rep("N1", nrow(data))
+  table <- new_tracer_table(data)
+  expected <- data
+  expected$ID[1] <- "n1"
+  expected$From[4:5] <- "n1"
+  expected$To[c(3, 5)] <- "n1"
+
+  renamed <- .tracer_table_rename_id(table, 1L, "n1")
+
+  expect_identical(renamed$table$data, expected)
+  expect_null(renamed$notice)
+  expect_identical(table$data, data)
+  expect_equal(nrow(validate_tracer_table(renamed$table)$warnings), 0L)
+  expect_identical(.tracer_table_rename_id(renamed$table, 1L, "n1")$table, renamed$table)
+})
+
+test_that("edge ID renames leave endpoints and even invalid edge references unchanged", {
+  data <- make_test_table_data(
+    c("N1", "E1", "E2"), c("node", "edge", "edge"),
+    from = c(NA_character_, "N1", "N1"),
+    to = c(NA_character_, "N1", "E1")
+  )
+  expected <- data
+  expected$ID[2] <- "e1"
+
+  renamed <- .tracer_table_rename_id(new_tracer_table(data), 2L, "e1")
+
+  expect_identical(renamed$table$data, expected)
+  expect_null(renamed$notice)
+  expect_match(validate_tracer_table(renamed$table)$warnings$message, "unknown node or capsule ID 'E1'", fixed = TRUE)
+})
+
+test_that("ID renames reject collisions and invalid new IDs without changing the input", {
+  data <- make_test_table_data(
+    c("N1", "N2", "E1", "C1"), c("node", "node", "edge", "capsule"),
+    from = c(NA_character_, NA_character_, "N1", NA_character_),
+    to = c(NA_character_, NA_character_, "N2", NA_character_)
+  )
+  table <- new_tracer_table(data)
+  for (row in c(1L, 3L)) {
+    for (id in setdiff(data$ID, data$ID[row])) {
+      expect_error(.tracer_table_rename_id(table, row, id), "already exists in this table")
+    }
+    for (id in c("", "  ", "new.id", "new__id")) {
+      expect_error(.tracer_table_rename_id(table, row, id))
+    }
+  }
+  expect_identical(table$data, data)
+  renamed <- .tracer_table_rename_id(table, 1L, "n2")
+  expect_identical(renamed$table$data$ID[1:2], c("n2", "N2"))
+  expect_equal(nrow(validate_tracer_table(renamed$table)$errors), 0L)
+})
+
+test_that("missing invalid and duplicated node IDs can be repaired without guessing endpoints", {
+  for (old_id in c(NA_character_, "", "  ", "bad.id", "Duplicate")) {
+    data <- make_test_table_data(
+      c(old_id, "Duplicate", "E1"), c("node", "node", "edge"),
+      from = c(NA_character_, NA_character_, old_id),
+      to = c(NA_character_, NA_character_, "Duplicate")
+    )
+    expected <- data
+    expected$ID[1] <- "Repaired"
+
+    renamed <- .tracer_table_rename_id(new_tracer_table(data), 1L, "Repaired")
+
+    expect_identical(renamed$table$data, expected)
+    expect_match(renamed$notice, "Edge references were not changed", fixed = TRUE)
+  }
 })

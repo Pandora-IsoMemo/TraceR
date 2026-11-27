@@ -13,11 +13,13 @@ mod_sidebar_ui(id)
 Shared application controls
 }
 \description{
-Displays network-table actions, persistence controls, and session controls.
+Displays network-table actions, capsule navigation, persistence controls,
+and session controls.
 Session downloads store the shared \code{tracer_table} as data and capture the
 root Shiny inputs. Session imports are returned to the application server,
 which validates and installs the table before restoring those inputs. The
 Save checkpoint is session-local; Reset restores the last checkpoint after
-confirmation. Network-table JSON import/export is separate from DataTools
-session import/export.
+confirmation. Whole-network ZIP import/export is separate from DataTools
+session import/export. Network-table JSON import/export lives in the table
+module.
 }

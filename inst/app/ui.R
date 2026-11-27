@@ -1,9 +1,14 @@
 library(shiny)
 library(TraceR)
 
+options(shiny.maxRequestSize = 110 * 1024^2)
+
 tagList(
   navbarPage(
-    title = paste("TraceR", packageVersion("TraceR")),
+    title = shinyTools::headerTitle(
+      pkg_name = "TraceR",
+      url_docu = "https://pandora-isomemo.github.io/TraceR/"
+    ),
     theme = shinythemes::shinytheme("flatly"),
     position = "fixed-top",
     collapsible = TRUE,
@@ -13,9 +18,11 @@ tagList(
       sidebarLayout(
         sidebarPanel(
           width = 2,
+          style = "position:sticky; top:80px; overflow-y:auto; max-height:88vh",
           mod_sidebar_ui("sidebar")
         ),
         mainPanel(
+          uiOutput("operation_feedback"),
           tabsetPanel(
             id = "network_tabs",
             tabPanel(

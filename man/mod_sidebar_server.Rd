@@ -6,28 +6,29 @@
 \usage{
 mod_sidebar_server(
   id,
-  current_table,
   root_inputs,
+  current_network,
   unsaved_changes = NULL,
-  private_key = NULL
+  selected_path = NULL
 )
 }
 \arguments{
 \item{id}{Module ID}
 
-\item{current_table}{Reactive value containing the shared \code{tracer_table}}
-
 \item{root_inputs}{Root Shiny input object for session persistence}
+
+\item{current_network}{Required reactive value containing the \code{tracer_network}}
 
 \item{unsaved_changes}{Reactive logical indicating whether the table is dirty}
 
-\item{private_key}{Optional RSA private key for signed table downloads}
+\item{selected_path}{Reactive value containing the selected capsule path}
 }
 \value{
-A list of sidebar actions, imported data, and the monotonically
-increasing \code{table_import_request_id} used to distinguish repeated imports.
+A list of sidebar actions for capsule management, network ZIP
+import/export, and session persistence.
 }
 \description{
-The sidebar does not own network data. It returns table and session actions
-for the application server to coordinate.
+The sidebar does not own network data. It renders the supplied hierarchy
+and returns selected paths, table actions, and session actions for the
+application server to coordinate.
 }

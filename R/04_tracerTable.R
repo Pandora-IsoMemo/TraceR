@@ -76,6 +76,32 @@
   is.na(x) | trimws(x) == ""
 }
 
+.tracer_table_id_error <- function(id) {
+  if (grepl(".", id, fixed = TRUE)) {
+    return("IDs must not contain '.'; it is reserved for hierarchical references.")
+  }
+  if (grepl("__", id, fixed = TRUE)) {
+    return("IDs must not contain the reserved sequence '__'.")
+  }
+  NULL
+}
+
+.tracer_capsule_id_error <- function(id) {
+  if (grepl("[/:*?\"<>|]", id) || grepl("\\\\", id)) {
+    return("Capsule IDs cannot contain filesystem path separators or reserved filename characters.")
+  }
+  if (grepl("[[:cntrl:]]", id) || grepl("[[:space:]]$", id)) {
+    return("Capsule IDs cannot contain control characters or end in whitespace.")
+  }
+  if (nchar(enc2utf8(id), type = "bytes") > 255L) {
+    return("Capsule IDs cannot exceed 255 UTF-8 bytes.")
+  }
+  if (grepl("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$", id, ignore.case = TRUE)) {
+    return("Capsule IDs cannot use reserved Windows device names.")
+  }
+  NULL
+}
+
 .tracer_table_append_issue <- function(issues, row, field, message) {
   rbind(issues, .tracer_table_issues(row, field, message))
 }
@@ -115,6 +141,13 @@
   }
 
   types <- data[["Type"]]
+  for (row in which(populated & !id_missing)) {
+    message <- .tracer_table_id_error(ids[row])
+    if (!is.null(message)) {
+      errors <- .tracer_table_append_issue(errors, row, "ID", message)
+    }
+  }
+
   type_missing <- .tracer_table_is_missing(types)
   for (row in which(populated & type_missing)) {
     errors <- .tracer_table_append_issue(
@@ -137,6 +170,33 @@
   }
 
   edge_rows <- which(!is.na(types) & types == "edge")
+  capsule_rows <- which(!is.na(types) & types == "capsule" & !id_missing)
+  capsule_ids <- ids[capsule_rows]
+  folded_capsule_ids <- tolower(capsule_ids)
+  case_collisions <- unique(folded_capsule_ids[
+    duplicated(folded_capsule_ids) | duplicated(folded_capsule_ids, fromLast = TRUE)
+  ])
+  for (folded_id in case_collisions) {
+    rows <- capsule_rows[folded_capsule_ids == folded_id]
+    if (length(unique(capsule_ids[folded_capsule_ids == folded_id])) > 1L) {
+      message <- paste0(
+        "Capsule IDs must be unique without regard to case; conflicting IDs occur in rows ",
+        paste(rows, collapse = ", "),
+        "."
+      )
+      for (row in rows) {
+        errors <- .tracer_table_append_issue(errors, row, "ID", message)
+      }
+    }
+  }
+
+  for (row in capsule_rows) {
+    message <- .tracer_capsule_id_error(ids[row])
+    if (!is.null(message)) {
+      errors <- .tracer_table_append_issue(errors, row, "ID", message)
+    }
+  }
+
   for (row in edge_rows) {
     edge_name <- if (id_missing[row]) paste0("row ", row) else paste0("edge '", ids[row], "'")
 
@@ -148,6 +208,19 @@
           row,
           field,
           paste0("Edge ", edge_name, " is missing required field '", field, "'.")
+        )
+        next
+      }
+
+      if (grepl(".", reference, fixed = TRUE)) {
+        errors <- .tracer_table_append_issue(
+          errors,
+          row,
+          field,
+          paste0(
+            "Edge ", edge_name, " uses unsupported hierarchical reference '",
+            reference, "' in field '", field, "'; references must be local IDs."
+          )
         )
         next
       }
@@ -182,6 +255,58 @@
   }
 
   list(errors = errors, warnings = warnings)
+}
+
+.tracer_table_rename_id <- function(table, row, new_id) {
+  issues <- .tracer_table_structure_issues(table)
+  if (nrow(issues) > 0L) {
+    stop(paste(issues$message, collapse = " "), call. = FALSE)
+  }
+  data <- table$data
+  if (!is.numeric(row) || is.complex(row) || length(row) != 1L ||
+      is.na(row) || !is.finite(row) || row < 1L || row > nrow(data) ||
+      row != trunc(row)) {
+    stop("Select a valid table row to rename.", call. = FALSE)
+  }
+  if (!data$Type[row] %in% c("node", "edge")) {
+    stop("Only node and edge IDs can be renamed in the table editor.", call. = FALSE)
+  }
+  if (!is.character(new_id) || length(new_id) != 1L || is.na(new_id)) {
+    stop("The new ID must be one non-empty character value.", call. = FALSE)
+  }
+  old_id <- data$ID[row]
+  if (identical(old_id, new_id)) return(list(table = table, notice = NULL))
+  if (.tracer_table_is_missing(new_id)) {
+    stop("The new ID must be one non-empty character value.", call. = FALSE)
+  }
+  id_error <- .tracer_table_id_error(new_id)
+  if (!is.null(id_error)) stop(id_error, call. = FALSE)
+  if (new_id %in% data$ID[-row]) {
+    stop(paste0("ID '", new_id, "' already exists in this table."), call. = FALSE)
+  }
+
+  notice <- NULL
+  if (identical(data$Type[row], "node")) {
+    unambiguous <- !.tracer_table_is_missing(old_id) &&
+      is.null(.tracer_table_id_error(old_id)) &&
+      sum(data$ID == old_id, na.rm = TRUE) == 1L
+    if (unambiguous) {
+      edge_rows <- which(!is.na(data$Type) & data$Type == "edge")
+      for (field in c("From", "To")) {
+        references <- edge_rows[
+          !is.na(data[[field]][edge_rows]) & data[[field]][edge_rows] == old_id
+        ]
+        data[[field]][references] <- new_id
+      }
+    } else {
+      notice <- paste0(
+        "Node ID repaired. Edge references were not changed because the previous ",
+        "ID was missing, invalid, or duplicated; review the connections."
+      )
+    }
+  }
+  data$ID[row] <- new_id
+  list(table = new_tracer_table(data), notice = notice)
 }
 
 #' The TraceR table class
