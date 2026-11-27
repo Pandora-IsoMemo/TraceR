@@ -829,6 +829,18 @@ shinyServer(function(input, output, session) {
     session_bundle <- uploaded[[1L]]
     session_data <- session_bundle[["data"]]
     imported_network <- if (is.list(session_data)) session_data[["tracer_network"]] else NULL
+    if (is.null(imported_network) && is.list(session_data) &&
+        inherits(session_data[["tracer_table"]], "tracer_table")) {
+      imported_network <- tryCatch(
+        network_from_root_table(new_tracer_table(session_data[["tracer_table"]]$data)),
+        error = function(error) error
+      )
+      if (inherits(imported_network, "error")) {
+        show_messages("Invalid session table", conditionMessage(imported_network), "error")
+        return()
+      }
+      session_data[["selected_path"]] <- ""
+    }
 
     if (is.null(imported_network)) {
       shinyalert::shinyalert(
