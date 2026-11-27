@@ -349,7 +349,7 @@ shinyServer(function(input, output, session) {
       return(invisible(NULL))
     }
     validation <- validate_tracer_network(replacement_network)
-    if (nrow(validation$errors) > 0L) {
+    if (nrow(validation$errors) > 0L && !identical(source, "session")) {
       show_messages("Could not install network", validation$errors$message, "error")
       return(invisible(NULL))
     }
