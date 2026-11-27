@@ -106,6 +106,10 @@
 #'   entries, 100 MiB of uncompressed data, 110 MiB per archive, 10 MiB per
 #'   table, and 64 capsule levels. Exports that exceed these limits fail with
 #'   an actionable error instead of producing an archive the app cannot import.
+#'   Export also checks full temporary file paths, including the temporary
+#'   directory prefix and `data.json`: paths must be shorter than 4,096 UTF-8
+#'   bytes on Linux, 260 on Windows, or a conservative 1,024 on other systems.
+#'   Shorten capsule IDs or reduce nesting if this path budget is exceeded.
 #'
 #' @param network A `tracer_network`.
 #' @param file Destination ZIP path.
@@ -149,6 +153,42 @@ tracer_network_to_zip <- function(network, file) {
       deepest_path,
       max(depths),
       .tracer_network_zip_default_limits$max_depth
+    ), call. = FALSE)
+  }
+
+  temporary_root <- tempfile("tracer-network-export-")
+  network_directory <- file.path(temporary_root, "network")
+  table_files <- vapply(paths, function(path) {
+    if (identical(path, "")) {
+      file.path(network_directory, "data.json")
+    } else {
+      file.path(network_directory, path, "data.json")
+    }
+  }, character(1))
+  path_limit <- if (.Platform$OS.type == "windows") {
+    260L
+  } else if (identical(Sys.info()[["sysname"]], "Linux")) {
+    4096L
+  } else {
+    1024L
+  }
+  path_sizes <- nchar(enc2utf8(table_files), type = "bytes")
+  if (any(path_sizes >= path_limit)) {
+    index <- which.max(path_sizes)
+    table_label <- if (identical(paths[[index]], "")) {
+      "the root table"
+    } else {
+      paste0("capsule path '", paths[[index]], "'")
+    }
+    stop(sprintf(
+      paste0(
+        "Cannot export this network: the temporary file path for %s is %s UTF-8 bytes, ",
+        "exceeding the export path budget of %s bytes. Shorten capsule IDs or reduce ",
+        "nesting before downloading, or use a shorter temporary directory path."
+      ),
+      table_label,
+      path_sizes[[index]],
+      path_limit - 1L
     ), call. = FALSE)
   }
 
@@ -197,29 +237,23 @@ tracer_network_to_zip <- function(network, file) {
 
   destination_directory <- normalizePath(dirname(file), winslash = "/", mustWork = TRUE)
   destination <- file.path(destination_directory, basename(file))
-  temporary_root <- tempfile("tracer-network-export-")
   if (!dir.create(temporary_root)) {
     stop("Could not create a temporary directory for ZIP export.", call. = FALSE)
   }
   on.exit(unlink(temporary_root, recursive = TRUE, force = TRUE), add = TRUE)
 
-  network_directory <- file.path(temporary_root, "network")
   if (!dir.create(network_directory)) {
     stop("Could not create the temporary network directory.", call. = FALSE)
   }
 
   for (index in seq_along(paths)) {
     path <- paths[[index]]
-    table_directory <- if (identical(path, "")) {
-      network_directory
-    } else {
-      file.path(network_directory, path)
-    }
+    table_directory <- dirname(table_files[[index]])
     if (!dir.exists(table_directory) &&
         !dir.create(table_directory, recursive = TRUE, showWarnings = FALSE)) {
       stop(paste0("Could not create directory for capsule path '", path, "'."), call. = FALSE)
     }
-    writeBin(table_json[[index]], file.path(table_directory, "data.json"))
+    writeBin(table_json[[index]], table_files[[index]])
   }
 
   zip::zipr(

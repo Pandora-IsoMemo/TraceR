@@ -31,8 +31,7 @@ make_zip_test_wide_network <- function(capsule_count) {
   new_tracer_network(new_tracer_table(root_data), tables)
 }
 
-make_zip_test_deep_network <- function(depth) {
-  ids <- sprintf("C%03d", seq_len(depth))
+make_zip_test_deep_network <- function(depth, ids = sprintf("C%03d", seq_len(depth))) {
   root <- make_zip_test_table(ids[[1L]], "capsule")
   tables <- lapply(seq_len(depth), function(index) {
     if (index == depth) {
@@ -141,6 +140,54 @@ test_that("whole-network ZIP export rejects networks beyond app import limits", 
     "exceeding the app import limit of 10,485,760 bytes"
   )
   expect_false(file.exists(archive))
+})
+
+test_that("ZIP export checks full UTF-8 paths before creating directories", {
+  skip_on_os("windows")
+  temporary_root <- tempfile("tracer-network-export-")
+  archive <- tempfile(fileext = ".zip")
+  directory_calls <- 0L
+  network_for_path_size <- function(size) {
+    remaining <- size - nchar(
+      enc2utf8(file.path(temporary_root, "network", "data.json")),
+      type = "bytes"
+    ) - 1L
+    ids <- character()
+    while (remaining > 240L) {
+      ids <- c(ids, strrep("x", 240L))
+      remaining <- remaining - 241L
+    }
+    ids <- c(ids, strrep("x", remaining))
+    ids[[1L]] <- paste0("\u00e9", substring(ids[[1L]], 3L))
+    make_zip_test_deep_network(length(ids), ids)
+  }
+
+  accepted <- network_for_path_size(4095L)
+  rejected <- network_for_path_size(4096L)
+  expect_length(validate_tracer_network(rejected)$errors$message, 0L)
+  results <- local({
+    testthat::local_mocked_bindings(
+      tempfile = function(...) temporary_root,
+      Sys.info = function() c(sysname = "Linux"),
+      dir.create = function(...) {
+        directory_calls <<- directory_calls + 1L
+        stop("Reached directory creation.")
+      },
+      .package = "base"
+    )
+    list(
+      accepted = tryCatch(tracer_network_to_zip(accepted, archive), error = identity),
+      rejected = tryCatch(tracer_network_to_zip(rejected, archive), error = identity)
+    )
+  })
+  expect_match(conditionMessage(results$accepted), "Reached directory creation")
+  expect_match(
+    conditionMessage(results$rejected),
+    "4096 UTF-8 bytes.*path budget of 4095 bytes.*Shorten capsule IDs or reduce nesting"
+  )
+  expect_identical(directory_calls, 1L)
+  expect_false(file.exists(archive))
+  expect_false(dir.exists(temporary_root))
 })
 
 test_that("whole-network ZIP import enforces configured security limits", {

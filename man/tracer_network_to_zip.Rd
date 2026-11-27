@@ -24,4 +24,8 @@ Export is limited to the default app import limits: 1,000 ZIP
 entries, 100 MiB of uncompressed data, 110 MiB per archive, 10 MiB per
 table, and 64 capsule levels. Exports that exceed these limits fail with
 an actionable error instead of producing an archive the app cannot import.
+Export also checks full temporary file paths, including the temporary
+directory prefix and \code{data.json}: paths must be shorter than 4,096 UTF-8
+bytes on Linux, 260 on Windows, or a conservative 1,024 on other systems.
+Shorten capsule IDs or reduce nesting if this path budget is exceeded.
 }

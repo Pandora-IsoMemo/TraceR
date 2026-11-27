@@ -236,6 +236,9 @@ are unsaved changes. **Import ZIP as capsule** instead inserts the imported
 hierarchy beneath a new capsule at the selected level. Both validate the
 network before applying it. ZIP files are subject to entry-count, archive-size,
 uncompressed-size, per-table-size, compression-ratio, and nesting-depth limits.
+Export also checks the full temporary filesystem paths before creating
+directories. If capsule IDs and nesting exceed the path budget, shorten the
+IDs or reduce nesting; a shorter temporary directory path can also help.
 Use ZIP exchange when preserving the hierarchy matters.
 
 ## Download and import network-table JSON
