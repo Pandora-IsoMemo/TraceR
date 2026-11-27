@@ -23,7 +23,11 @@ test_that("whole-network ZIP export and import preserve nested tables", {
 
   expect_identical(tracer_network_to_zip(network, archive), archive)
   expect_true(file.exists(archive))
-  expect_true("network/data.json" %in% zip::zip_list(archive)$filename)
+  entries <- zip::zip_list(archive)
+  expect_true("network/data.json" %in% entries$filename)
+  file_entries <- entries[entries$type == "file", ]
+  expect_gt(nrow(file_entries), 0L)
+  expect_equal(file_entries$compressed_size, file_entries$uncompressed_size)
 
   imported <- tracer_network_from_zip(archive)
   expect_identical(imported$root, network$root)
@@ -42,7 +46,7 @@ test_that("whole-network ZIP import enforces configured security limits", {
   expect_error(tracer_network_from_zip(archive, max_total_uncompressed = 1), "size limits")
   expect_error(tracer_network_from_zip(archive, max_archive_size = 1), "archive size limit")
   expect_error(tracer_network_from_zip(archive, max_table_size = 1), "size limits")
-  expect_error(tracer_network_from_zip(archive, max_compression_ratio = 1), "compression ratio")
+  expect_no_error(tracer_network_from_zip(archive, max_compression_ratio = 1))
   expect_error(tracer_network_from_zip(archive, max_depth = 1L), "nesting limit")
   expect_error(tracer_network_from_zip(archive, max_total_uncompressed = -1), "finite non-negative")
   expect_error(.tracer_zip_path("../data.json", FALSE), "empty, '.' or '..'")
