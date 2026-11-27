@@ -75,25 +75,22 @@ mod_sidebar_ui <- function(id) {
 #' application server to coordinate.
 #'
 #' @param id Module ID
-#' @param current_table Reactive value containing the shared `tracer_table`
 #' @param root_inputs Root Shiny input object for session persistence
 #' @param unsaved_changes Reactive logical indicating whether the table is dirty
-#' @param current_network Reactive value containing the `tracer_network`
+#' @param current_network Required reactive value containing the `tracer_network`
 #' @param selected_path Reactive value containing the selected capsule path
 #' @return A list of sidebar actions for capsule management, network ZIP
 #'   import/export, and session persistence.
 #' @export
 mod_sidebar_server <- function(
   id,
-  current_table,
   root_inputs,
+  current_network,
   unsaved_changes = NULL,
-  current_network = NULL,
   selected_path = NULL
 ) {
   moduleServer(id, function(input, output, session) {
     if (is.null(unsaved_changes)) unsaved_changes <- reactive(FALSE)
-    if (is.null(current_network)) current_network <- reactive(new_tracer_network())
     if (is.null(selected_path)) selected_path <- reactive("")
     tree_selection <- reactiveVal(NULL)
     tree_selection_request <- reactiveVal(0L)
@@ -111,7 +108,10 @@ mod_sidebar_server <- function(
 
     DataTools::downloadModelServer(
       "session_download",
-      dat = reactive(list(tracer_table = current_table())),
+      dat = reactive(list(
+        tracer_network = current_network(),
+        selected_path = selected_path()
+      )),
       inputs = root_inputs,
       model = reactive(NULL),
       rPackageName = config()[["rPackageName"]],

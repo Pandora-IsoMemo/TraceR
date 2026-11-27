@@ -6,23 +6,20 @@
 \usage{
 mod_sidebar_server(
   id,
-  current_table,
   root_inputs,
+  current_network,
   unsaved_changes = NULL,
-  current_network = NULL,
   selected_path = NULL
 )
 }
 \arguments{
 \item{id}{Module ID}
 
-\item{current_table}{Reactive value containing the shared \code{tracer_table}}
-
 \item{root_inputs}{Root Shiny input object for session persistence}
 
-\item{unsaved_changes}{Reactive logical indicating whether the table is dirty}
+\item{current_network}{Required reactive value containing the \code{tracer_network}}
 
-\item{current_network}{Reactive value containing the \code{tracer_network}}
+\item{unsaved_changes}{Reactive logical indicating whether the table is dirty}
 
 \item{selected_path}{Reactive value containing the selected capsule path}
 }

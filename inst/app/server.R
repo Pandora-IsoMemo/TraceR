@@ -35,7 +35,6 @@ shinyServer(function(input, output, session) {
 
   sidebar <- mod_sidebar_server(
     "sidebar",
-    current_table = current_table,
     root_inputs = input,
     unsaved_changes = unsaved_changes,
     current_network = reactive(working_network()),
@@ -304,8 +303,8 @@ shinyServer(function(input, output, session) {
         saved_network()
       } else NULL
     ))
-    selected_path("")
-    current_table(get_tracer_table(replacement$network, ""))
+    selected_path(replacement$selected_path)
+    current_table(get_tracer_table(replacement$network, replacement$selected_path))
     operation_feedback(NULL)
     table_module$scroll_to_top()
     if (!is.null(replacement$inputs)) {
@@ -338,7 +337,8 @@ shinyServer(function(input, output, session) {
     notices = character(),
     source,
     inputs = NULL,
-    network = NULL
+    network = NULL,
+    selected_path = ""
   ) {
     replacement_network <- if (is.null(network)) {
       tryCatch(network_from_root_table(table), error = function(error) error)
@@ -360,7 +360,8 @@ shinyServer(function(input, output, session) {
       warnings = unique(c(warnings, validation$warnings$message)),
       notices = notices,
       source = source,
-      inputs = inputs
+      inputs = inputs,
+      selected_path = selected_path
     )
     if (!isTRUE(unsaved_changes())) {
       apply_replacement(replacement)
@@ -827,41 +828,50 @@ shinyServer(function(input, output, session) {
     req(length(uploaded) > 0L)
     session_bundle <- uploaded[[1L]]
     session_data <- session_bundle[["data"]]
-    imported_table <- if (is.list(session_data)) session_data[["tracer_table"]] else NULL
+    imported_network <- if (is.list(session_data)) session_data[["tracer_network"]] else NULL
 
-    if (is.null(imported_table)) {
+    if (is.null(imported_network)) {
       shinyalert::shinyalert(
         title = "Unsupported session",
-        text = "This session does not contain a TraceR table. Older graph-only sessions cannot be restored.",
+        text = "This session does not contain a TraceR network.",
         type = "warning"
       )
       return()
     }
 
-    restored_table <- tryCatch({
-      if (!inherits(imported_table, "tracer_table") || !is.data.frame(imported_table$data)) {
-        stop("The session's tracer_table object is malformed.")
+    restored_state <- tryCatch({
+      if (!inherits(imported_network, "tracer_network")) {
+        stop("The session's tracer_network object is malformed.")
       }
-      new_tracer_table(imported_table$data)
+      network <- new_tracer_network(imported_network$root, imported_network$tables)
+      restored_path <- session_data[["selected_path"]]
+      if (!is.character(restored_path) || length(restored_path) != 1L ||
+          is.na(restored_path) || !.tracer_network_valid_path(restored_path) ||
+          !restored_path %in% tracer_network_paths(network)) {
+        stop("The session's selected_path does not identify a network table.")
+      }
+      list(network = network, selected_path = restored_path)
     }, error = function(error) error)
 
-    if (inherits(restored_table, "error")) {
+    if (inherits(restored_state, "error")) {
       shinyalert::shinyalert(
-        title = "Invalid session table",
-        text = restored_table$message,
+        title = "Invalid session network",
+        text = conditionMessage(restored_state),
         type = "error"
       )
       return()
     }
 
     session_inputs <- session_bundle[["inputs"]]
-    validation <- validate_tracer_table(restored_table)
+    validation <- validate_tracer_network(restored_state$network)
     request_replacement(
-      restored_table,
+      restored_state$network$root,
       warnings = validation$warnings$message,
       notices = validation$errors$message,
       source = "session",
-      inputs = if (is.null(session_inputs)) list() else session_inputs
+      inputs = if (is.null(session_inputs)) list() else session_inputs,
+      network = restored_state$network,
+      selected_path = restored_state$selected_path
     )
   })
 })

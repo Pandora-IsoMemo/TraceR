@@ -32,8 +32,8 @@ test_that("shared sidebar server initializes with shared state and root inputs",
   shiny::testServer(
     mod_sidebar_server,
     args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
-      root_inputs = shiny::reactiveValues()
+      root_inputs = shiny::reactiveValues(),
+      current_network = shiny::reactive(new_tracer_network())
     ),
     {
       expect_true(is.list(session$returned))
@@ -56,6 +56,34 @@ test_that("shared sidebar server initializes with shared state and root inputs",
   )
 })
 
+test_that("session downloads capture the complete network and selected path", {
+  network <- createExampleTracerNetwork()
+  selected_path <- shiny::reactiveVal("C1")
+  session_data <- NULL
+  testthat::local_mocked_bindings(
+    downloadModelServer = function(id, dat, ...) {
+      session_data <<- dat
+    },
+    .package = "DataTools"
+  )
+
+  shiny::testServer(
+    mod_sidebar_server,
+    args = list(
+      root_inputs = shiny::reactiveValues(),
+      current_network = shiny::reactive(network),
+      selected_path = selected_path
+    ),
+    {
+      session$flushReact()
+      expect_identical(session_data(), list(
+        tracer_network = network,
+        selected_path = "C1"
+      ))
+    }
+  )
+})
+
 test_that("capsule tree selections return slash-separated paths", {
   network <- new_tracer_network()
   network <- add_tracer_capsule(network, "", "C1")
@@ -64,7 +92,6 @@ test_that("capsule tree selections return slash-separated paths", {
   shiny::testServer(
     mod_sidebar_server,
     args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
       root_inputs = shiny::reactiveValues(),
       current_network = shiny::reactive(network),
       selected_path = shiny::reactive("")
@@ -111,7 +138,6 @@ test_that("capsule tree only rerenders for structural network changes", {
   shiny::testServer(
     mod_sidebar_server,
     args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
       root_inputs = shiny::reactiveValues(),
       current_network = current_network,
       selected_path = shiny::reactive("")
@@ -352,6 +378,25 @@ test_that("whole-network ZIP actions replace or nest a hierarchy", {
   })
 })
 
+test_that("session restoration reinstalls the full network and selected path", {
+  network <- createExampleTracerNetwork()
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    actions <- environment(request_replacement)$sidebar
+    actions$uploaded_session <- shiny::reactiveVal(list(list(
+      data = list(tracer_network = network, selected_path = "C1"),
+      inputs = list()
+    )))
+    environment(request_replacement)$sidebar <- actions
+    session$flushReact()
+
+    expect_identical(working_network(), network)
+    expect_identical(selected_path(), "C1")
+    expect_identical(current_table(), get_tracer_table(network, "C1"))
+  })
+})
+
 test_that("the loaded example's analysis capsule is navigable", {
   app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
 
@@ -520,8 +565,8 @@ test_that("rename and delete controls are disabled at the root", {
   shiny::testServer(
     mod_sidebar_server,
     args = list(
-      current_table = shiny::reactiveVal(new_tracer_table()),
       root_inputs = shiny::reactiveValues(),
+      current_network = shiny::reactive(new_tracer_network()),
       selected_path = path
     ),
     {
