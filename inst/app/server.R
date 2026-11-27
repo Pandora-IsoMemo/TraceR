@@ -297,7 +297,12 @@ shinyServer(function(input, output, session) {
 
   apply_replacement <- function(replacement) {
     working_network(replacement$network)
-    path_map(tracer_network_path_map(replacement$network, saved_network = NULL))
+    path_map(tracer_network_path_map(
+      replacement$network,
+      saved_network = if (tracer_network_data_identical(replacement$network, saved_network())) {
+        saved_network()
+      } else NULL
+    ))
     selected_path("")
     current_table(get_tracer_table(replacement$network, ""))
     operation_feedback(NULL)
