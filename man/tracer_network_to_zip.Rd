@@ -19,3 +19,9 @@ The archive contains \code{network/data.json} and one \code{data.json} for each
 capsule directory. Every table uses the existing versioned table JSON
 format.
 }
+\details{
+Export is limited to the default app import limits: 1,000 ZIP
+entries, 100 MiB of uncompressed data, 110 MiB per archive, 10 MiB per
+table, and 64 capsule levels. Exports that exceed these limits fail with
+an actionable error instead of producing an archive the app cannot import.
+}

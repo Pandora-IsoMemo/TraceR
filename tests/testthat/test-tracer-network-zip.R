@@ -17,6 +17,37 @@ make_zip_test_network <- function() {
   set_tracer_table(network, "Top/Nested", leaf)
 }
 
+make_zip_test_wide_network <- function(capsule_count) {
+  ids <- sprintf("C%03d", seq_len(capsule_count))
+  root_data <- new_tracer_table()$data
+  root_data <- root_data[rep(NA_integer_, capsule_count), , drop = FALSE]
+  root_data[] <- ""
+  root_data$ID <- ids
+  root_data$Type <- "capsule"
+  tables <- stats::setNames(
+    rep(list(new_tracer_table()), capsule_count),
+    ids
+  )
+  new_tracer_network(new_tracer_table(root_data), tables)
+}
+
+make_zip_test_deep_network <- function(depth) {
+  ids <- sprintf("C%03d", seq_len(depth))
+  root <- make_zip_test_table(ids[[1L]], "capsule")
+  tables <- lapply(seq_len(depth), function(index) {
+    if (index == depth) {
+      new_tracer_table()
+    } else {
+      make_zip_test_table(ids[[index + 1L]], "capsule")
+    }
+  })
+  paths <- vapply(seq_len(depth), function(index) {
+    paste(ids[seq_len(index)], collapse = "/")
+  }, character(1))
+  names(tables) <- paths
+  new_tracer_network(root, tables)
+}
+
 make_zip_entry_fixture <- function(filenames, types = rep("file", length(filenames))) {
   archive <- tempfile(fileext = ".zip")
   withr::defer(unlink(archive), envir = parent.frame())
@@ -83,6 +114,33 @@ test_that("whole-network ZIP export and import preserve nested tables", {
     expect_identical(get_tracer_table(imported, path), get_tracer_table(network, path))
   }
   expect_identical(validate_tracer_network(imported)$errors$path, character())
+})
+
+test_that("whole-network ZIP export rejects networks beyond app import limits", {
+  archive <- tempfile(fileext = ".zip")
+
+  expect_error(
+    tracer_network_to_zip(make_zip_test_wide_network(500L), archive),
+    "1,002 ZIP entries"
+  )
+  expect_false(file.exists(archive))
+
+  expect_error(
+    tracer_network_to_zip(make_zip_test_deep_network(65L), archive),
+    "nesting depth 65"
+  )
+  expect_false(file.exists(archive))
+
+  oversized_table <- make_zip_test_table(
+    "N1",
+    "node",
+    strrep("x", 10 * 1024^2)
+  )
+  expect_error(
+    tracer_network_to_zip(new_tracer_network(oversized_table), archive),
+    "exceeding the app import limit of 10,485,760 bytes"
+  )
+  expect_false(file.exists(archive))
 })
 
 test_that("whole-network ZIP import enforces configured security limits", {

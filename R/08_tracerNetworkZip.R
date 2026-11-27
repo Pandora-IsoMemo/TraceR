@@ -1,3 +1,12 @@
+.tracer_network_zip_default_limits <- list(
+  max_entries = 1000L,
+  max_total_uncompressed = 100 * 1024^2,
+  max_archive_size = 110 * 1024^2,
+  max_table_size = 10 * 1024^2,
+  max_compression_ratio = 100,
+  max_depth = 64L
+)
+
 .tracer_zip_component_error <- function(component) {
   if (!nzchar(component) || component %in% c(".", "..")) {
     return("ZIP paths cannot contain empty, '.' or '..' components.")
@@ -93,6 +102,11 @@
 #' capsule directory. Every table uses the existing versioned table JSON
 #' format.
 #'
+#' @details Export is limited to the default app import limits: 1,000 ZIP
+#'   entries, 100 MiB of uncompressed data, 110 MiB per archive, 10 MiB per
+#'   table, and 64 capsule levels. Exports that exceed these limits fail with
+#'   an actionable error instead of producing an archive the app cannot import.
+#'
 #' @param network A `tracer_network`.
 #' @param file Destination ZIP path.
 #' @return `file`, invisibly.
@@ -104,6 +118,81 @@ tracer_network_to_zip <- function(network, file) {
   }
   if (!is.character(file) || length(file) != 1L || is.na(file) || !nzchar(file)) {
     stop("'file' must be one non-empty path.", call. = FALSE)
+  }
+
+  paths <- tracer_network_paths(network)
+  entry_count <- 2 * length(paths)
+  if (entry_count > .tracer_network_zip_default_limits$max_entries) {
+    stop(sprintf(
+      paste0(
+        "Cannot export this network: it would create %s ZIP entries, exceeding ",
+        "the app import limit of %s. Reduce the number of capsules/tables before downloading."
+      ),
+      format(entry_count, big.mark = ",", scientific = FALSE, trim = TRUE),
+      format(
+        .tracer_network_zip_default_limits$max_entries,
+        big.mark = ",",
+        scientific = FALSE,
+        trim = TRUE
+      )
+    ), call. = FALSE)
+  }
+  non_root_paths <- paths[nzchar(paths)]
+  depths <- lengths(strsplit(non_root_paths, "/", fixed = TRUE))
+  if (length(depths) > 0L && any(depths > .tracer_network_zip_default_limits$max_depth)) {
+    deepest_path <- non_root_paths[[which.max(depths)]]
+    stop(sprintf(
+      paste0(
+        "Cannot export this network: capsule path '%s' has nesting depth %s, ",
+        "exceeding the app import limit of %s. Reduce nesting before downloading."
+      ),
+      deepest_path,
+      max(depths),
+      .tracer_network_zip_default_limits$max_depth
+    ), call. = FALSE)
+  }
+
+  table_json <- vector("list", length(paths))
+  total_size <- 0
+  for (index in seq_along(paths)) {
+    path <- paths[[index]]
+    json <- charToRaw(enc2utf8(tracer_table_to_json(get_tracer_table(network, path))))
+    table_size <- length(json)
+    if (table_size > .tracer_network_zip_default_limits$max_table_size) {
+      table_label <- if (identical(path, "")) {
+        "The root table"
+      } else {
+        paste0("Table at capsule path '", path, "'")
+      }
+      stop(sprintf(
+        "%s serializes to %s bytes, exceeding the app import limit of %s bytes. Reduce that table's contents before downloading.",
+        table_label,
+        format(table_size, big.mark = ",", scientific = FALSE, trim = TRUE),
+        format(
+          .tracer_network_zip_default_limits$max_table_size,
+          big.mark = ",",
+          scientific = FALSE,
+          trim = TRUE
+        )
+      ), call. = FALSE)
+    }
+    total_size <- total_size + table_size
+    if (total_size > .tracer_network_zip_default_limits$max_total_uncompressed) {
+      stop(sprintf(
+        paste0(
+          "Cannot export this network: its tables total %s bytes, exceeding the app ",
+          "import limit of %s bytes. Reduce table contents or split the network before downloading."
+        ),
+        format(total_size, big.mark = ",", scientific = FALSE, trim = TRUE),
+        format(
+          .tracer_network_zip_default_limits$max_total_uncompressed,
+          big.mark = ",",
+          scientific = FALSE,
+          trim = TRUE
+        )
+      ), call. = FALSE)
+    }
+    table_json[[index]] <- json
   }
 
   destination_directory <- normalizePath(dirname(file), winslash = "/", mustWork = TRUE)
@@ -119,8 +208,8 @@ tracer_network_to_zip <- function(network, file) {
     stop("Could not create the temporary network directory.", call. = FALSE)
   }
 
-  for (path in tracer_network_paths(network)) {
-    table <- get_tracer_table(network, path)
+  for (index in seq_along(paths)) {
+    path <- paths[[index]]
     table_directory <- if (identical(path, "")) {
       network_directory
     } else {
@@ -130,10 +219,7 @@ tracer_network_to_zip <- function(network, file) {
         !dir.create(table_directory, recursive = TRUE, showWarnings = FALSE)) {
       stop(paste0("Could not create directory for capsule path '", path, "'."), call. = FALSE)
     }
-    writeBin(
-      charToRaw(enc2utf8(tracer_table_to_json(table))),
-      file.path(table_directory, "data.json")
-    )
+    writeBin(table_json[[index]], file.path(table_directory, "data.json"))
   }
 
   zip::zipr(
@@ -145,6 +231,39 @@ tracer_network_to_zip <- function(network, file) {
     include_directories = TRUE,
     mode = "cherry-pick"
   )
+  archive_size <- file.info(destination)$size
+  if (is.na(archive_size) ||
+      archive_size > .tracer_network_zip_default_limits$max_archive_size) {
+    stop(sprintf(
+      paste0(
+        "Cannot export this network: the generated ZIP is %s bytes, exceeding ",
+        "the app import limit of %s bytes. Reduce network contents before downloading."
+      ),
+      format(archive_size, big.mark = ",", scientific = FALSE, trim = TRUE),
+      format(
+        .tracer_network_zip_default_limits$max_archive_size,
+        big.mark = ",",
+        scientific = FALSE,
+        trim = TRUE
+      )
+    ), call. = FALSE)
+  }
+  actual_entries <- nrow(zip::zip_list(destination))
+  if (actual_entries > .tracer_network_zip_default_limits$max_entries) {
+    stop(sprintf(
+      paste0(
+        "Cannot export this network: the generated ZIP contains %s entries, ",
+        "exceeding the app import limit of %s. Reduce the number of capsules/tables before downloading."
+      ),
+      format(actual_entries, big.mark = ",", scientific = FALSE, trim = TRUE),
+      format(
+        .tracer_network_zip_default_limits$max_entries,
+        big.mark = ",",
+        scientific = FALSE,
+        trim = TRUE
+      )
+    ), call. = FALSE)
+  }
   invisible(file)
 }
 
@@ -164,16 +283,25 @@ tracer_network_to_zip <- function(network, file) {
 #' @details Defaults limit archives to 1,000 entries, 100 MiB of uncompressed
 #'   files, 110 MiB of ZIP data, 10 MiB per table, a 100:1 compression ratio,
 #'   and 64 capsule levels.
+#' @usage tracer_network_from_zip(
+#'   file,
+#'   max_entries = 1000L,
+#'   max_total_uncompressed = 100 * 1024^2,
+#'   max_archive_size = 110 * 1024^2,
+#'   max_table_size = 10 * 1024^2,
+#'   max_compression_ratio = 100,
+#'   max_depth = 64L
+#' )
 #' @return A validated `tracer_network`.
 #' @export
 tracer_network_from_zip <- function(
   file,
-  max_entries = 1000L,
-  max_total_uncompressed = 100 * 1024^2,
-  max_archive_size = 110 * 1024^2,
-  max_table_size = 10 * 1024^2,
-  max_compression_ratio = 100,
-  max_depth = 64L
+  max_entries = .tracer_network_zip_default_limits$max_entries,
+  max_total_uncompressed = .tracer_network_zip_default_limits$max_total_uncompressed,
+  max_archive_size = .tracer_network_zip_default_limits$max_archive_size,
+  max_table_size = .tracer_network_zip_default_limits$max_table_size,
+  max_compression_ratio = .tracer_network_zip_default_limits$max_compression_ratio,
+  max_depth = .tracer_network_zip_default_limits$max_depth
 ) {
   limits <- list(
     max_entries = max_entries,

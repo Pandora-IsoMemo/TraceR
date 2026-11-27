@@ -239,7 +239,17 @@ mod_sidebar_server <- function(
             duration = NULL
           )
         }
-        tracer_network_to_zip(current_network(), file)
+        tryCatch(
+          tracer_network_to_zip(current_network(), file),
+          error = function(error) {
+            shiny::showNotification(
+              paste("Cannot download network ZIP:", conditionMessage(error)),
+              type = "error",
+              duration = NULL
+            )
+            stop(conditionMessage(error), call. = FALSE)
+          }
+        )
       }
     )
 
