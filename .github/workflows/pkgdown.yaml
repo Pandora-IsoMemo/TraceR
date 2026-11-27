@@ -11,14 +11,15 @@ on:
 
 name: pkgdown
 
+# Only restrict concurrency for non-PR jobs
+concurrency:
+  group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+
 permissions: read-all
 
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
-    # Only restrict concurrency for non-PR jobs
-    concurrency:
-      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     permissions:
@@ -32,7 +33,7 @@ jobs:
         with:
           use-public-rspm: true
           extra-repositories: |
-            Pandora = https://Pandora-IsoMemo.github.io/drat/
+            https://Pandora-IsoMemo.github.io/drat/
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
