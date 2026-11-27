@@ -187,12 +187,16 @@ mod_table_server <- function(id, current_table, private_key = NULL) {
       if (row >= 1L && row <= nrow(current$data) &&
           identical(field, "ID") && identical(current$data$Type[row], "capsule")) {
         feedback(list(type = "warning", text = "Rename capsules using the capsule controls."))
+        DT::replaceData(proxy, current$data, rownames = FALSE,
+                        resetPaging = FALSE, clearSelection = "none")
         return()
       }
       if (row >= 1L && row <= nrow(current$data) && identical(field, "Type")) {
         old_type <- current$data$Type[row]
         if (identical(old_type, "capsule") || identical(edit$value, "capsule")) {
           feedback(list(type = "warning", text = "Create or remove capsules using the capsule controls."))
+          DT::replaceData(proxy, current$data, rownames = FALSE,
+                          resetPaging = FALSE, clearSelection = "none")
           return()
         }
       }
