@@ -339,12 +339,28 @@ credential handling under deployment ownership; this guide does not prescribe
 copying production private keys to local installations.
 
 Session downloads use `DataTools::downloadModelServer()` with
-`dat = reactive(list(tracer_table = current_table()))`, root inputs, NULL model,
-and `onlySettings = TRUE`. DataTools `.tracer` bundles remain unsigned. The saved
-checkpoint and the rest of the hierarchy are not included. Session import
-extracts `data$tracer_table`, checks its class/data-frame structure, builds a
-root network, requests replacement, then restores matching inputs through
-`updateInput()` using the root session. Removed IDs are ignored.
+`dat = reactive(list(tracer_network = current_network(),
+selected_path = selected_path()))`, root inputs, NULL model, and
+`onlySettings = TRUE`. DataTools `.tracer` bundles remain unsigned. They include
+the complete working hierarchy, including descendant tables and unsaved edits,
+but not the saved checkpoint.
+
+Session import extracts `data$tracer_network`, checks its class, reconstructs
+it with `new_tracer_network(root, tables)`, and checks that `data$selected_path`
+identifies a table in that network. It requests replacement of the full
+hierarchy, with dirty confirmation when necessary, rather than constructing a
+network from only the selected table. Content validation reports incomplete
+tables without discarding working edits. `apply_replacement()` rebuilds the
+path map against the unchanged checkpoint and restores the selected path when
+mapped, otherwise selecting the nearest checkpointable ancestor while keeping
+all restored tables. Matching inputs are restored through `updateInput()` using
+the root session; removed IDs are ignored.
+
+Older bundles containing only `data$tracer_table` are restored as root networks
+with empty child tables for capsule rows; they cannot recover descendant data
+that was never serialized. Graph-only sessions are unsupported. New session
+downloads and extensions must preserve both the full network and selected path,
+not reduce the payload to the current table.
 Session serialization captures inputs broadly, including transient widget state;
 do not treat it as authenticated persistence or assume temporary upload paths
 are portable.
