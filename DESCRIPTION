@@ -35,7 +35,7 @@ Imports:
     shinyjs,
     shinyTree,
     shinyTools,
-    zip,
+    zip (>= 2.3.3),
     yaml
 URL: https://pandora-isomemo.github.io/TraceR/
 Config/roxygen2/version: 8.0.0

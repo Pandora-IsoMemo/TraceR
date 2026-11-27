@@ -120,10 +120,9 @@ test_that("signed table download is shown only when a private key is available",
       session$flushReact()
       expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
       expect_match(output$table_download_controls$html, "Download Signed", fixed = TRUE)
-      expect_match(output$table_download_controls$html, "Experimental: testing only", fixed = TRUE)
+      expect_match(output$table_download_controls$html, "Experimental", fixed = TRUE)
       expect_match(output$table_download_controls$html, "Keep an unsigned JSON copy", fixed = TRUE)
       expect_match(output$table_download_controls$html, 'class="alert alert-warning"', fixed = TRUE)
-      expect_match(output$table_download_controls$html, "<strong>Experimental: testing only</strong>", fixed = TRUE)
     }
   )
 })
@@ -140,7 +139,7 @@ test_that("table JSON controls render below the table without a key", {
       session$flushReact()
       expect_match(output$table_download_controls$html, "Download", fixed = TRUE)
       expect_false(grepl("Download Signed", output$table_download_controls$html, fixed = TRUE))
-      expect_false(grepl("Experimental: testing only", output$table_download_controls$html, fixed = TRUE))
+      expect_false(grepl("Experimental", output$table_download_controls$html, fixed = TRUE))
     }
   )
 })

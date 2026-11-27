@@ -139,6 +139,7 @@ tracer_network_to_zip <- function(network, file) {
   zip::zipr(
     zipfile = destination,
     files = "network",
+    compression_level = 0,
     root = temporary_root,
     recurse = TRUE,
     include_directories = TRUE,
