@@ -10,6 +10,10 @@
 - Added a three-step analysis workflow inside the example's Analyze data capsule.
 - Moved network-table JSON download (signed and unsigned) and import from the sidebar to below the table in the Network Table tab.
 
+## Bug Fixes
+- Allow case-only capsule renames while still rejecting ID collisions with other parent-table rows.
+- Rename node IDs and their matching edge endpoints atomically in the table editor; edge ID renames preserve endpoints, with explicit feedback for invalid renames and ambiguous node-ID repairs.
+
 # TraceR 26.11.1
 
 ## New Features

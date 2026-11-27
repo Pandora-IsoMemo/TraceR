@@ -257,6 +257,58 @@
   list(errors = errors, warnings = warnings)
 }
 
+.tracer_table_rename_id <- function(table, row, new_id) {
+  issues <- .tracer_table_structure_issues(table)
+  if (nrow(issues) > 0L) {
+    stop(paste(issues$message, collapse = " "), call. = FALSE)
+  }
+  data <- table$data
+  if (!is.numeric(row) || is.complex(row) || length(row) != 1L ||
+      is.na(row) || !is.finite(row) || row < 1L || row > nrow(data) ||
+      row != trunc(row)) {
+    stop("Select a valid table row to rename.", call. = FALSE)
+  }
+  if (!data$Type[row] %in% c("node", "edge")) {
+    stop("Only node and edge IDs can be renamed in the table editor.", call. = FALSE)
+  }
+  if (!is.character(new_id) || length(new_id) != 1L || is.na(new_id)) {
+    stop("The new ID must be one non-empty character value.", call. = FALSE)
+  }
+  old_id <- data$ID[row]
+  if (identical(old_id, new_id)) return(list(table = table, notice = NULL))
+  if (.tracer_table_is_missing(new_id)) {
+    stop("The new ID must be one non-empty character value.", call. = FALSE)
+  }
+  id_error <- .tracer_table_id_error(new_id)
+  if (!is.null(id_error)) stop(id_error, call. = FALSE)
+  if (new_id %in% data$ID[-row]) {
+    stop(paste0("ID '", new_id, "' already exists in this table."), call. = FALSE)
+  }
+
+  notice <- NULL
+  if (identical(data$Type[row], "node")) {
+    unambiguous <- !.tracer_table_is_missing(old_id) &&
+      is.null(.tracer_table_id_error(old_id)) &&
+      sum(data$ID == old_id, na.rm = TRUE) == 1L
+    if (unambiguous) {
+      edge_rows <- which(!is.na(data$Type) & data$Type == "edge")
+      for (field in c("From", "To")) {
+        references <- edge_rows[
+          !is.na(data[[field]][edge_rows]) & data[[field]][edge_rows] == old_id
+        ]
+        data[[field]][references] <- new_id
+      }
+    } else {
+      notice <- paste0(
+        "Node ID repaired. Edge references were not changed because the previous ",
+        "ID was missing, invalid, or duplicated; review the connections."
+      )
+    }
+  }
+  data$ID[row] <- new_id
+  list(table = new_tracer_table(data), notice = notice)
+}
+
 #' The TraceR table class
 #'
 #' A `tracer_table` represents one network level and has the structure

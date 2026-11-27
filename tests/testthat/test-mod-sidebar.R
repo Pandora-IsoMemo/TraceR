@@ -121,6 +121,59 @@ test_that("selecting a capsule loads its table into the shared app state", {
   })
 })
 
+test_that("case-only sidebar renames preserve nested contents and update tree navigation", {
+  root_data <- new_tracer_table()$data[rep(NA_integer_, 3L), ]
+  root_data[] <- ""
+  root_data$ID <- c("N1", "Incoming", "Outgoing")
+  root_data$Type <- c("node", "edge", "edge")
+  root_data$From <- c("", "N1", "C1")
+  root_data$To <- c("", "C1", "N1")
+  contents <- get_tracer_table(createExampleTracerNetwork(), "C1")
+  network <- add_tracer_capsule(new_tracer_network(new_tracer_table(root_data)), "", "C1", child_table = contents)
+  network <- add_tracer_capsule(network, "C1", "C2", child_table = contents)
+  sidebar_tree <- NULL
+  testthat::local_mocked_bindings(
+    updateTree = function(session, inputId, data) {
+      sidebar_tree <<- data
+    },
+    .package = "shinyTree"
+  )
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    working_network(network)
+    saved_network(network)
+    path_map(tracer_network_path_map(network))
+    current_table(get_tracer_table(network, ""))
+    session$flushReact()
+    session$setInputs(`sidebar-capsule_tree` = list(Root = structure(
+      list(C1 = structure(list(C2 = ""), stselected = TRUE)),
+      stselected = FALSE
+    )))
+    expect_identical(selected_path(), "C1")
+
+    session$setInputs(`sidebar-rename_capsule_id` = "c1", `sidebar-rename_capsule` = 1L)
+    session$flushReact()
+    invisible(output[["sidebar-capsule_tree"]])
+
+    expect_identical(selected_path(), "c1")
+    expect_identical(current_table(), get_tracer_table(network, "C1"))
+    expect_identical(working_network()$root$data$From[3], "c1")
+    expect_identical(working_network()$root$data$To[2], "c1")
+    expect_identical(list_tracer_capsules(working_network()), "c1")
+    expect_identical(names(working_network()$tables), c("c1", "c1/C2"))
+    expect_identical(get_tracer_table(working_network(), "c1/C2"), contents)
+    expect_identical(saved_network(), network)
+    expect_identical(path_map()$working_path, c("", "c1", "c1/C2"))
+    expect_identical(path_map()$saved_path, c("", "C1", "C1/C2"))
+    expect_identical(output[["sidebar-selected_path"]], "Root / c1")
+    expect_identical(names(sidebar_tree$Root), "c1")
+    expect_identical(names(sidebar_tree$Root$c1), "C2")
+    expect_true(attr(sidebar_tree$Root$c1, "stselected"))
+    expect_true(attr(sidebar_tree$Root$c1, "stopened"))
+  })
+})
+
 test_that("navigation reconciles checkpoint paths for identically recreated capsules", {
   app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
 
@@ -174,6 +227,55 @@ test_that("navigation reconciles checkpoint paths for identically recreated caps
       expect_false(unsaved_changes())
     })
   }
+})
+
+test_that("node and edge renames stay table-local and follow explicit Save and Reset", {
+  network <- createExampleTracerNetwork()
+  original_map <- tracer_network_path_map(network)
+  app <- shiny::shinyAppDir(system.file("app", package = "TraceR"))
+
+  shiny::testServer(app$serverFuncSource(), {
+    working_network(network)
+    saved_network(network)
+    path_map(original_map)
+    current_table(get_tracer_table(network, ""))
+    session$flushReact()
+
+    rename_example_ids <- function(node_id, edge_id) {
+      session$setInputs(`table-table_cell_edit` = list(row = 5L, col = 0L, value = node_id))
+      session$setInputs(`table-table_cell_edit` = list(row = 10L, col = 0L, value = edge_id))
+    }
+    rename_example_ids("n4", "e4")
+    renamed_table <- current_table()
+    expect_identical(working_network()$root, renamed_table)
+    expect_identical(saved_network(), network)
+    expect_identical(path_map(), original_map)
+    expect_identical(selected_path(), "")
+    expect_identical(get_tracer_table(working_network(), "C1"), get_tracer_table(network, "C1"))
+    expect_true(unsaved_changes())
+    graph_tables <- as.graph_tables(renamed_table)
+    expect_true("n4" %in% graph_tables$nodes$tracer_id)
+    expect_true("e4" %in% graph_tables$edges$tracer_id)
+    expect_identical(renamed_table$data$From[11], "n4")
+    expect_identical(renamed_table$data$To[10], "n4")
+
+    session$setInputs(`sidebar-reset_table` = 1L)
+    session$setInputs(confirm_table_reset = 1L)
+    expect_identical(current_table(), network$root)
+    expect_false(unsaved_changes())
+
+    rename_example_ids("n4", "e4")
+    session$setInputs(`sidebar-save_table` = 1L)
+    expect_identical(saved_network()$root, renamed_table)
+    expect_false(unsaved_changes())
+    rename_example_ids("N4", "E4")
+    expect_true(unsaved_changes())
+    session$setInputs(`sidebar-reset_table` = 2L)
+    session$setInputs(confirm_table_reset = 2L)
+    expect_identical(current_table(), renamed_table)
+    expect_true(tracer_network_data_identical(working_network(), saved_network()))
+    expect_false(unsaved_changes())
+  })
 })
 
 test_that("whole-network ZIP actions replace or nest a hierarchy", {

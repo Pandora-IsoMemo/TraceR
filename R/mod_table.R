@@ -76,7 +76,10 @@ mod_table_ui <- function(id) {
 #' Table module server
 #'
 #' Cell edits and row operations update the supplied shared table reactive.
-#' Invalid intermediate content is retained and reported for the Network
+#' Renaming a node with a valid, unique ID updates matching edge endpoints in
+#' the same table atomically. Renaming an edge changes only its ID.
+#' Invalid ID renames are rejected with feedback. Other invalid intermediate
+#' content is retained and reported for the Network
 #' module to handle. The module also provides network-table JSON download
 #' (signed when a private key is supplied) and import.
 #'
@@ -199,6 +202,23 @@ mod_table_server <- function(id, current_table, private_key = NULL) {
                           resetPaging = FALSE, clearSelection = "none")
           return()
         }
+      }
+
+      if (row >= 1L && row <= nrow(current$data) &&
+          identical(field, "ID") && current$data$Type[row] %in% c("node", "edge")) {
+        renamed <- tryCatch(
+          .tracer_table_rename_id(current, row, edit$value),
+          error = function(error) error
+        )
+        if (inherits(renamed, "error")) {
+          feedback(list(type = "warning", text = conditionMessage(renamed)))
+          DT::replaceData(proxy, current$data, rownames = FALSE,
+                          resetPaging = FALSE, clearSelection = "none")
+          return()
+        }
+        current_table(renamed$table)
+        feedback(if (is.null(renamed$notice)) NULL else list(type = "warning", text = renamed$notice))
+        return()
       }
 
       data <- DT::editData(current$data, edit, rownames = FALSE)

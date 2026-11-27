@@ -114,6 +114,20 @@ The table has no pagination. Its fixed-height viewport shows roughly ten
 single-line rows, with vertical and horizontal scrolling for larger tables.
 Text does not wrap in data cells. Blank rows retain a usable editing height.
 
+Editing a node's ID renames that node and updates every matching edge From/To
+value in the same table, including self-loops. Editing an edge's ID changes
+only that ID, not its endpoints. Both operations preserve labels, metadata,
+row order, and other tables. IDs and reference matching remain case-sensitive;
+case-only renames such as `N1` to `n1` are supported. Capsule IDs must instead
+be renamed using the sidebar controls.
+
+Node and edge ID edits cannot introduce a missing ID, duplicate another row's
+ID, or use the reserved `.` or `__` sequences. If the previous node ID was
+missing, invalid, or duplicated, its ID can be repaired but edge references
+are left unchanged with a warning to review the connections. Renames modify
+working data only: **Save** checkpoints them and **Reset** restores the saved
+IDs and connections.
+
 Deleting a node does **not** delete edges that refer to it. The app reports
 those unresolved references; edit or delete the edges yourself. Deleting a
 capsule uses the sidebar control and removes its child-table subtree, but does

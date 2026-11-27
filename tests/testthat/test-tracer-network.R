@@ -122,6 +122,55 @@ test_that("capsule renaming updates only its subtree and local edge references",
   expect_true("C1/C2" %in% names(network$tables))
 })
 
+test_that("case-only capsule renames update paths and references without self-collisions", {
+  root <- make_network_test_table(
+    c("N1", "Incoming", "Outgoing"),
+    c("node", "edge", "edge"),
+    from = c("", "N1", "C1"),
+    to = c("", "C1", "N1")
+  )
+  network <- add_tracer_capsule(new_tracer_network(root), "", "C1")
+  network <- add_tracer_capsule(network, "", "C10")
+  child <- make_network_test_table(
+    c("A", "B", "Internal"),
+    c("node", "node", "edge"),
+    from = c("", "", "A"),
+    to = c("", "", "B")
+  )
+  network <- set_tracer_table(network, "C1", child)
+  network <- add_tracer_capsule(network, "C1", "C2")
+  leaf <- make_network_test_table("Leaf", "node")
+  leaf$data$Label[1] <- "Nested contents"
+  network <- set_tracer_table(network, "C1/C2", leaf)
+
+  renamed <- rename_tracer_capsule(network, "C1", "c1")
+
+  expect_identical(names(renamed$tables), c("c1", "C10", "c1/C2"))
+  expect_identical(list_tracer_capsules(renamed), c("c1", "C10"))
+  expect_identical(renamed$root$data$From[3], "c1")
+  expect_identical(renamed$root$data$To[2], "c1")
+  expect_identical(get_tracer_table(renamed, "c1"), get_tracer_table(network, "C1"))
+  expect_identical(get_tracer_table(renamed, "c1/C2"), leaf)
+  expect_identical(rename_tracer_capsule(renamed, "c1", "c1"), renamed)
+  expect_identical(names(network$tables), c("C1", "C10", "C1/C2"))
+})
+
+test_that("capsule renames still reject case-insensitive collisions with all other rows", {
+  root <- make_network_test_table(c("Node", "Edge"), c("node", "edge"), c("", "Node"), c("", "Node"))
+  network <- add_tracer_capsule(new_tracer_network(root), "", "C1")
+  network <- add_tracer_capsule(network, "", "Other")
+
+  for (id in c("Node", "node", "Edge", "edge", "Other", "other")) {
+    expect_error(rename_tracer_capsule(network, "C1", id), "already exists in the parent table")
+  }
+  edited_parent <- get_tracer_table(network)
+  edited_parent$data$ID[1] <- "c1"
+  expect_error(
+    rename_tracer_capsule(network, "C1", "c1", parent_table = edited_parent),
+    "already exists in the parent table"
+  )
+})
+
 test_that("capsule deletion removes only the exact subtree", {
   root <- make_network_test_table(
     c("N1", "E1"),

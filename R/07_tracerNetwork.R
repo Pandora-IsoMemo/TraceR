@@ -447,12 +447,6 @@ rename_tracer_capsule <- function(network, path, new_id, parent_table = NULL) {
   if (!is.null(id_error)) {
     stop(id_error, call. = FALSE)
   }
-  if (new_id != old_id &&
-      (new_id %in% current_parent$data$ID ||
-       tolower(new_id) %in% tolower(current_parent$data$ID[!is.na(current_parent$data$ID)]))) {
-    stop(paste0("ID '", new_id, "' already exists in the parent table."), call. = FALSE)
-  }
-
   data <- current_parent$data
   capsule_row <- which(
     !is.na(data$ID) & data$ID == old_id &
@@ -462,6 +456,10 @@ rename_tracer_capsule <- function(network, path, new_id, parent_table = NULL) {
     stop(paste0("Capsule '", old_id, "' is not present exactly once in its parent table."), call. = FALSE)
   }
   if (new_id == old_id) return(network)
+  other_ids <- data$ID[-capsule_row]
+  if (tolower(new_id) %in% tolower(other_ids[!is.na(other_ids)])) {
+    stop(paste0("ID '", new_id, "' already exists in the parent table."), call. = FALSE)
+  }
 
   data$ID[capsule_row] <- new_id
   edge_rows <- which(!is.na(data$Type) & data$Type == "edge")

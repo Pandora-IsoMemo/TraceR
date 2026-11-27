@@ -33,6 +33,58 @@ test_that("table module edits, adds, deletes, and renames shared data", {
   )
 })
 
+test_that("node and edge ID cell edits publish coherent example tables atomically", {
+  shared_table <- shiny::reactiveVal(createExampleTracerTable())
+  shiny::testServer(mod_table_server, args = list(current_table = shared_table), {
+    changes <- list()
+    shiny::observeEvent(shared_table(), {
+      changes[[length(changes) + 1L]] <<- shared_table()
+    }, ignoreInit = TRUE)
+    session$flushReact()
+
+    for (target_id in c("N1", "N4", "E4")) {
+      before <- shared_table()
+      changes <- list()
+      session$setInputs(table_cell_edit = list(
+        row = match(target_id, before$data$ID), col = 0L, value = tolower(target_id)
+      ))
+      expect_length(changes, 1L)
+      expect_identical(changes[[1]], shared_table())
+      expect_equal(nrow(validate_tracer_table(shared_table())$warnings), 0L)
+      expect_equal(nrow(validate_tracer_table(shared_table())$errors), 0L)
+      if (target_id == "E4") {
+        expect_identical(shared_table()$data$From, before$data$From)
+        expect_identical(shared_table()$data$To, before$data$To)
+      }
+    }
+    expect_identical(shared_table()$data$From[c(7, 11)], c("n1", "n4"))
+    expect_identical(shared_table()$data$To[10], "n4")
+    expect_null(output$feedback)
+  })
+})
+
+test_that("ID cell edits report rejected renames and ambiguous repairs", {
+  initial <- createExampleTracerTable()
+  initial$data$ID[2] <- "N1"
+  shared_table <- shiny::reactiveVal(initial)
+  shiny::testServer(mod_table_server, args = list(current_table = shared_table), {
+    for (new_id in c("E1", "C1", "bad.id", "bad__id", "")) {
+      session$setInputs(table_cell_edit = list(row = 1L, col = 0L, value = new_id))
+      expect_identical(shared_table(), initial)
+      expect_match(output$feedback$html, "alert-warning", fixed = TRUE)
+    }
+
+    session$setInputs(table_cell_edit = list(row = 1L, col = 0L, value = "Fixed"))
+    expect_identical(shared_table()$data$ID[1], "Fixed")
+    expect_identical(shared_table()$data$From, initial$data$From)
+    expect_identical(shared_table()$data$To, initial$data$To)
+    expect_match(output$feedback$html, "Edge references were not changed", fixed = TRUE)
+
+    session$setInputs(table_cell_edit = list(row = 1L, col = 0L, value = "fixed"))
+    expect_null(output$feedback)
+  })
+})
+
 test_that("capsule lifecycle cells and rows are managed outside DT", {
   data <- new_tracer_table()$data
   data[1, ] <- ""

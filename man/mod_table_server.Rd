@@ -20,7 +20,10 @@ repeated imports.
 }
 \description{
 Cell edits and row operations update the supplied shared table reactive.
-Invalid intermediate content is retained and reported for the Network
+Renaming a node with a valid, unique ID updates matching edge endpoints in
+the same table atomically. Renaming an edge changes only its ID.
+Invalid ID renames are rejected with feedback. Other invalid intermediate
+content is retained and reported for the Network
 module to handle. The module also provides network-table JSON download
 (signed when a private key is supplied) and import.
 }
